@@ -10,13 +10,34 @@ namespace RhythmGamer
     [Summary("osu! related commands")]
     public class osu : ModuleBase<SocketCommandContext>
     {
-
+        public async Task profile([Name("username/id")] string? user = null, [Name("mode")][Summary("The gamemode to lookup")] string? mode = null)
+        {
+            var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode ?? "");
+            var EmbedBuilder = Program.DefaultEmbed();
+            EmbedBuilder.Author = new()
+            {
+                Name = response.username,
+                IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
+            };
+            var gc = response.statistics.grade_counts;
+            EmbedBuilder.Description =
+            $"**Rank:** {response.statistics.global_rank ?? 0}\n" +
+            $"**Level:** {response.statistics.level.current}\n" +
+            $"**PP:** {response.statistics.pp} **Acc:** {response.statistics.hit_accuracy}%\n" +
+            $"**Playcount:** {response.statistics.play_count} ({response.statistics.play_time})\n" +
+            $"**Ranks:** SSH´{gc.ssh}´ SS´{gc.ss}´ SH´{gc.sh}´ S´{gc.s}´ A´{gc.a}´";
+            await ReplyAsync(embed: EmbedBuilder.Build());
+        }
     }
     #region internal stuff
     public class osuInternal
     {
-        public HttpClient client = new();
-        public Dictionary<string, string> Headers = new();
+        public class config
+        {
+            public string? username;
+        }
+        static public HttpClient client = new();
+        public static Dictionary<string, string> Headers = new();
         public class ClientCredentials
         {
             public string token_type = "";
@@ -24,9 +45,9 @@ namespace RhythmGamer
             public string access_token = "";
             public DateTime created = DateTime.Now;
         }
-        public ClientCredentials cc = new();
-        public string baseUrl = "https://osu.ppy.sh/api/v2";
-        private async void Authorize()
+        static public ClientCredentials cc = new();
+        const string baseUrl = "https://osu.ppy.sh/api/v2";
+        public static async void Authorize()
         {
             if (cc.created.AddSeconds(cc.expires_in) < DateTime.Now)
             {
@@ -46,63 +67,63 @@ namespace RhythmGamer
                 // client.DefaultRequestHeaders.Add("Authorization", "Bearer " + cc.access_token);
             }
         }
-        private async Task<osuData.osuBeatmapset> GetBeatmapset(int id)
+        public static async Task<osuData.osuBeatmapset> GetBeatmapset(int id)
         {
             Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/{id}");
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapset>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuBeatmapsets> GetBeatmapsets(string search)
+        public static async Task<osuData.osuBeatmapsets> GetBeatmapsets(string search)
         {
             Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/search?q={search}");
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapsets>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuBeatmap> GetBeatmap(int id)
+        public static async Task<osuData.osuBeatmap> GetBeatmap(int id)
         {
             Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/lookup?id={id}");
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmap>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuScores> GetBeatmapScores(int id)
+        public static async Task<osuData.osuScores> GetBeatmapScores(int id)
         {
             Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{id}/scores");
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuScores> GetBeatmapUserScores(int mapId, int userId)
+        public static async Task<osuData.osuScores> GetBeatmapUserScores(int mapId, int userId)
         {
             Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all");
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuUser> GetUser(int id)
+        public static async Task<osuData.osuUser> GetUser(int id, string? mode)
         {
             Authorize();
-            var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}");
+            var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/{mode ?? ""}");
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuUser> GetUser(string username)
+        public static async Task<osuData.osuUser> GetUser(string username, string? mode)
         {
             Authorize();
-            var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}");
+            var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}/{mode ?? ""}");
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuScores> GetUserTop(int id)
+        public static async Task<osuData.osuScores> GetUserTop(int id)
         {
             Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/best");
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             return content;
         }
-        private async Task<osuData.osuScores> GetUserRecent(int id)
+        public static async Task<osuData.osuScores> GetUserRecent(int id)
         {
             Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/recent");
@@ -295,7 +316,7 @@ namespace RhythmGamer
             public int scores_best_count;
             public int scores_first_count;
             public int scores_recent_count;
-            // statistics
+            public osuUserStatistics statistics = new();
             // statistics_rulesets
             public int support_level;
             // unread_pm_count
@@ -321,6 +342,35 @@ namespace RhythmGamer
             public string? title_url;
             public string? twitter;
             public string? website;
+        }
+        public class osuUserStatistics
+        {
+            public _grade_counts grade_counts = new();
+            public class _grade_counts
+            {
+                public int a;
+                public int s;
+                public int sh;
+                public int ss;
+                public int ssh;
+            }
+            public float hit_accuracy;
+            public bool is_ranked;
+            public _level level = new();
+            public class _level
+            {
+                public int current;
+                public float progress;
+            }
+            public int maximum_combo;
+            public int play_count;
+            public float play_time;
+            public float pp;
+            public int? global_rank;
+            public int ranked_score;
+            public int replays_watched_by_others;
+            public int total_hits;
+            public int total_score;
         }
     }
     #endregion
