@@ -121,6 +121,14 @@ namespace RhythmGamer
                         ServerConfigs.Add(server);
                     }
                 }
+                if (Directory.GetFiles("Data/Users").Length != 0)
+                {
+                    foreach (var config in Directory.GetFiles("Data/Users"))
+                    {
+                        var user = JsonConvert.DeserializeObject<UserConfig>(File.ReadAllText(config))!;
+                        UserConfigs.Add(user);
+                    }
+                }
                 List<ulong> servers = new List<ulong>();
                 foreach (var server in _client.Guilds)
                 {
@@ -173,10 +181,10 @@ namespace RhythmGamer
                     prefix = Config.prefix
                 });
 
-                foreach (var item in ServerConfigs)
-                {
-                    File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
-                }
+                // foreach (var item in ServerConfigs)
+                // {
+                //     File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
+                // }
                 return Task.CompletedTask;
             };
             _client.LeftGuild += (g) =>
@@ -184,10 +192,10 @@ namespace RhythmGamer
                 l.Info($"Removing server {g.Name} from config", "MainAsync");
                 if (ServerConfigs.Exists(x => x.id == g.Id))
                     ServerConfigs.Remove(ServerConfigs.Find(x => x.id == g.Id)!);
-                foreach (var item in ServerConfigs)
-                {
-                    File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
-                }
+                // foreach (var item in ServerConfigs)
+                // {
+                //     File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
+                // }
                 return Task.CompletedTask;
             };
 
@@ -202,6 +210,10 @@ namespace RhythmGamer
                         foreach (var item in ServerConfigs)
                         {
                             File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
+                        }
+                        foreach (var item in UserConfigs)
+                        {
+                            File.WriteAllText($"Data/Users/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
                         }
                         await _client.SetStatusAsync(UserStatus.Invisible);
                         await _client.LogoutAsync();

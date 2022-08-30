@@ -18,11 +18,20 @@ namespace RhythmGamer
         {
             l.Verbose("Starting...", "CommandHandler");
             _client.MessageReceived += HandleCommandAsync;
-            _client.ButtonExecuted += HandleButtonAsync;
-            await _commands.AddModulesAsync(assembly: System.Reflection.Assembly.GetEntryAssembly(),
+            await _commands.AddModulesAsync(assembly: System.Reflection.Assembly.GetExecutingAssembly(),
                                             services: null);
 
             Program.Commands = _commands.Commands.Count();
+            l.Debug(_commands.Modules.Count() + " modules loaded:", "InstallCommands");
+            foreach (var module in _commands.Modules)
+            {
+                l.Debug(module.Name, "InstallCommands");
+            }
+            l.Debug(Program.Commands + " commands loaded:", "InstallCommands");
+            foreach (var command in _commands.Commands)
+            {
+                l.Debug(command.Name, "InstallCommands");
+            }
         }
 
         private async Task HandleCommandAsync(Discord.WebSocket.SocketMessage messageParam)
@@ -46,22 +55,6 @@ namespace RhythmGamer
                 context: context,
                 argPos: argPos,
                 services: null);
-        }
-        private async Task HandleButtonAsync(Discord.WebSocket.SocketMessageComponent component)
-        {
-            try
-            {
-                switch (component.Data.CustomId)
-                {
-                    default:
-                        await component.RespondAsync("Unknown button");
-                        return;
-                }
-            }
-            catch (Exception ex)
-            {
-                l.Error(ex.StackTrace!, "HelpButtonHandler");
-            }
         }
     }
 }

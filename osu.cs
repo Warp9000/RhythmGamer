@@ -1,3 +1,4 @@
+using System.Net.WebSockets;
 using Discord;
 using Discord.Commands;
 using Newtonsoft.Json;
@@ -8,25 +9,77 @@ namespace RhythmGamer
     [Group("osu")]
     [Name("osu!")]
     [Summary("osu! related commands")]
-    public class osu : ModuleBase<SocketCommandContext>
+    public class OsuModule : ModuleBase<SocketCommandContext>
     {
-        public async Task profile([Name("username/id")] string? user = null, [Name("mode")][Summary("The gamemode to lookup")] string? mode = null)
+        [Command("setuser")]
+        [Summary("Set your default osu! user")]
+        public async Task SetUser([Name("username")] string username)
         {
-            var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode ?? "");
-            var EmbedBuilder = Program.DefaultEmbed();
-            EmbedBuilder.Author = new()
+            var response = await osuInternal.GetUser(username, null);
+            if (response.error != "none")
             {
-                Name = response.username,
-                IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
-            };
-            var gc = response.statistics.grade_counts;
-            EmbedBuilder.Description =
-            $"**Rank:** {response.statistics.global_rank ?? 0}\n" +
-            $"**Level:** {response.statistics.level.current}\n" +
-            $"**PP:** {response.statistics.pp} **Acc:** {response.statistics.hit_accuracy}%\n" +
-            $"**Playcount:** {response.statistics.play_count} ({response.statistics.play_time})\n" +
-            $"**Ranks:** SSH´{gc.ssh}´ SS´{gc.ss}´ SH´{gc.sh}´ S´{gc.s}´ A´{gc.a}´";
+                await ReplyAsync("error, idk");
+                return;
+            }
+            if (Program.UserConfigs.Exists(x => x.id == Context.User.Id))
+            {
+                Program.UserConfigs.Find(x => x.id == Context.User.Id)!.osu.username = username;
+            }
+            else
+            {
+                UserConfig user = new()
+                {
+                    id = Context.User.Id,
+                    osu =
+                    {
+                        username = username
+                    }
+                };
+                Program.UserConfigs.Add(user);
+            }
+            var EmbedBuilder = Program.DefaultEmbed();
+            EmbedBuilder.Description = $"Set default user to `{username}`";
             await ReplyAsync(embed: EmbedBuilder.Build());
+        }
+
+        [Command("profile")]
+        [Summary("Get an osu! profile")]
+        public async Task Profile([Name("username/id")] string? user = null, [Name("mode")][Summary("The gamemode to lookup")] string? mode = null)
+        {
+            try
+            {
+                var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode ?? "");
+                var EmbedBuilder = Program.DefaultEmbed();
+                if (response.http_code == 404)
+                {
+                    EmbedBuilder.Title = "404";
+                    EmbedBuilder.Description = "User not found";
+                    EmbedBuilder.Color = 0xff0000;
+                    await ReplyAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                EmbedBuilder.Author = new()
+                {
+                    Name = response.username,
+                    IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
+                };
+                var gc = response.statistics.grade_counts;
+                EmbedBuilder.Description =
+                $"**Rank:** {response.statistics.global_rank ?? 0}\n" +
+                $"**Level:** {response.statistics.level.current}\n" +
+                $"**PP:** {response.statistics.pp} **Acc:** {response.statistics.hit_accuracy}%\n" +
+                $"**Playcount:** {response.statistics.play_count} ({(ulong)response.statistics.play_time / 3600})\n" +
+                $"**Ranks:** SSH`{gc.ssh}` SS`{gc.ss}` SH`{gc.sh}` S`{gc.s}` A`{gc.a}`";
+                // EmbedBuilder.Footer = new()
+                // {
+
+                // };
+                await ReplyAsync(embed: EmbedBuilder.Build());
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine(ex);
+            }
         }
     }
     #region internal stuff
@@ -47,7 +100,7 @@ namespace RhythmGamer
         }
         static public ClientCredentials cc = new();
         const string baseUrl = "https://osu.ppy.sh/api/v2";
-        public static async void Authorize()
+        public static async Task Authorize()
         {
             if (cc.created.AddSeconds(cc.expires_in) < DateTime.Now)
             {
@@ -61,73 +114,86 @@ namespace RhythmGamer
                 var json = JsonConvert.SerializeObject(Headers);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var responseMessage = await client.PostAsync("https://osu.ppy.sh/oauth/token", content);
+                System.Console.WriteLine(await responseMessage.Content.ReadAsStringAsync());
                 cc = JsonConvert.DeserializeObject<ClientCredentials>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
                 cc.created = DateTime.Now;
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", cc.access_token);
-                // client.DefaultRequestHeaders.Add("Authorization", "Bearer " + cc.access_token);
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("Authorization", "Bearer " + cc.access_token);
             }
         }
         public static async Task<osuData.osuBeatmapset> GetBeatmapset(int id)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/{id}");
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapset>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuBeatmapsets> GetBeatmapsets(string search)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/search?q={search}");
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapsets>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuBeatmap> GetBeatmap(int id)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/lookup?id={id}");
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmap>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuScores> GetBeatmapScores(int id)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{id}/scores");
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuScores> GetBeatmapUserScores(int mapId, int userId)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all");
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuUser> GetUser(int id, string? mode)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/{mode ?? ""}");
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuUser> GetUser(string username, string? mode)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}/{mode ?? ""}");
+            System.Console.WriteLine($"{baseUrl}/users/{username}/{mode ?? ""}");
+            System.Console.WriteLine(await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            File.WriteAllText("a", await responseMessage.Content.ReadAsStringAsync());
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuScores> GetUserTop(int id)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/best");
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuScores> GetUserRecent(int id)
         {
-            Authorize();
+            await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/recent");
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
     }
@@ -136,6 +202,7 @@ namespace RhythmGamer
         public class osuBeatmap
         {
             public string error = "none";
+            public int http_code;
             // --------------------------------------------------
             public int beatmapset_id;
             public float difficulty_rating;
@@ -174,6 +241,8 @@ namespace RhythmGamer
         }
         public class osuBeatmapset
         {
+            public string error = "none";
+            public int http_code;
             public string artist = "";
             public string artist_unicode = "";
             public osuCovers? covers;
@@ -213,6 +282,7 @@ namespace RhythmGamer
         public class osuBeatmapsets
         {
             public string error = "none";
+            public int http_code;
             public osuBeatmapset[]? beatmapsets;
         }
         public class osuFailTimes
@@ -232,6 +302,7 @@ namespace RhythmGamer
         public class osuScore
         {
             public string error = "none";
+            public int http_code;
             // --------------------------------------------------
             public int id;
             public int best_id;
@@ -261,6 +332,7 @@ namespace RhythmGamer
         public class osuScores
         {
             public string error = "none";
+            public int http_code;
             public osuScore[]? scores;
         }
         public class osuScoreStatistics
@@ -282,6 +354,8 @@ namespace RhythmGamer
 
         public class osuUser
         {
+            public string error = "none";
+            public int http_code;
             public string avatar_url = "";
             public string country_code = "";
             public string default_group = "";
@@ -306,13 +380,28 @@ namespace RhythmGamer
             // groups
             public bool? is_restricted;
             public int loved_beatmapset_count;
-            public int[]? monthly_playcounts;
-            public int page;
+            public _monthly_playcounts[]? monthly_playcounts;
+            public class _monthly_playcounts
+            {
+                public string start_date = "";
+                public int count;
+            }
+            public _page page = new();
+            public class _page
+            {
+                public string html = "";
+                public string raw = "";
+            }
             public int pending_beatmapset_count;
             public string[]? previous_usernames;
-            public int[]? rank_history;
+            public _rank_istory rank_history = new();
+            public class _rank_istory
+            {
+                public string mode = "";
+                public int[]? data;
+            }
             public int ranked_beatmapset_count;
-            public int replays_watched_counts;
+            public int[]? replays_watched_counts;
             public int scores_best_count;
             public int scores_first_count;
             public int scores_recent_count;
@@ -366,11 +455,11 @@ namespace RhythmGamer
             public int play_count;
             public float play_time;
             public float pp;
-            public int? global_rank;
-            public int ranked_score;
+            public uint? global_rank;
+            public uint ranked_score;
             public int replays_watched_by_others;
-            public int total_hits;
-            public int total_score;
+            public uint total_hits;
+            public ulong total_score;
         }
     }
     #endregion
