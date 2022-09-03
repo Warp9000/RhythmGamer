@@ -1,28 +1,36 @@
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 using Newtonsoft.Json;
 using System.Text;
 
 namespace RhythmGamer
 {
-    [Group("osu")]
-    [Name("osu!")]
-    [Summary("osu! related commands")]
-    public class OsuTextModule : ModuleBase<SocketCommandContext>
+    // [Group("osu", "osu! related commands")]
+    public class OsuTextModule : InteractionModuleBase<SocketInteractionContext>
     {
-        [Command("setuser")]
-        [Summary("Set your default osu! user")]
-        public async Task SetUser([Name("username")] string username)
+        [SlashCommand("setuser", "Set your default osu! user")]
+        public async Task SetUser([Summary("Username", "Your osu! username which the bot should default to")] string username)
         {
             var response = await osuInternal.GetUser(username, null);
+            var EmbedBuilder = Program.DefaultEmbed();
+            if (response.http_code == 404)
+            {
+                EmbedBuilder.Title = "404";
+                EmbedBuilder.Description = "User not found";
+                EmbedBuilder.Color = 0xff0000;
+                await RespondAsync(embed: EmbedBuilder.Build());
+                return;
+            }
             if (response.error != "none")
             {
-                await ReplyAsync("error, idk");
+                EmbedBuilder.Title = response.http_code.ToString();
+                EmbedBuilder.Description = "Please report this to Warp#8703";
+                await RespondAsync(embed: EmbedBuilder.Build());
                 return;
             }
             if (Program.UserConfigs.Exists(x => x.id == Context.User.Id))
             {
-                Program.UserConfigs.Find(x => x.id == Context.User.Id)!.osu.username = username;
+                Program.UserConfigs.Find(x => x.id == Context.User.Id)!.osu.username = response.username;
             }
             else
             {
@@ -31,19 +39,17 @@ namespace RhythmGamer
                     id = Context.User.Id,
                     osu =
                     {
-                        username = username
+                        username = response.username
                     }
                 };
                 Program.UserConfigs.Add(user);
             }
-            var EmbedBuilder = Program.DefaultEmbed();
-            EmbedBuilder.Description = $"Set default user to `{username}`";
-            await ReplyAsync(embed: EmbedBuilder.Build());
+            EmbedBuilder.Description = $"Set default user to `{response.username}`";
+            await RespondAsync(embed: EmbedBuilder.Build());
         }
 
-        [Command("profile")]
-        [Summary("Get an osu! profile")]
-        public async Task Profile([Name("username")][Summary("The user to lookup")] string? user = null, [Name("mode")][Summary("The gamemode to lookup")] string? mode = null)
+        [SlashCommand("profile", "Get an osu! profile")]
+        public async Task Profile([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] string? mode = null)
         {
             var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode ?? "");
             var EmbedBuilder = Program.DefaultEmbed();
@@ -52,7 +58,15 @@ namespace RhythmGamer
                 EmbedBuilder.Title = "404";
                 EmbedBuilder.Description = "User not found";
                 EmbedBuilder.Color = 0xff0000;
-                await ReplyAsync(embed: EmbedBuilder.Build());
+                await RespondAsync(embed: EmbedBuilder.Build());
+                return;
+            }
+            if (response.error != "none")
+            {
+                var eb = Program.DefaultEmbed();
+                eb.Title = response.http_code.ToString();
+                eb.Description = "Please report this to Warp#8703";
+                await RespondAsync(embed: eb.Build());
                 return;
             }
             EmbedBuilder.Author = new()
@@ -67,7 +81,7 @@ namespace RhythmGamer
             $"**PP:** {response.statistics.pp} **Acc:** {Math.Round(response.statistics.hit_accuracy, 2)}%\n" +
             $"**Playcount:** {response.statistics.play_count} ({(ulong)response.statistics.play_time / 3600} hrs)\n" +
             $"**Ranks:** SSH`{gc.ssh}` SS`{gc.ss}` SH`{gc.sh}` S`{gc.s}` A`{gc.a}`";
-            await ReplyAsync(embed: EmbedBuilder.Build());
+            await RespondAsync(embed: EmbedBuilder.Build());
         }
     }
     #region internal stuff

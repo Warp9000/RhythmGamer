@@ -1,5 +1,4 @@
 ﻿using Discord;
-using Discord.Commands;
 using Newtonsoft.Json;
 
 namespace RhythmGamer
@@ -50,7 +49,7 @@ namespace RhythmGamer
                 AlwaysDownloadUsers = true,
                 MessageCacheSize = 250,
                 LogLevel = LogSeverity.Debug,
-                GatewayIntents = GatewayIntents.All
+                GatewayIntents = GatewayIntents.None
             };
             _client = new Discord.WebSocket.DiscordSocketClient(config);
 
@@ -98,14 +97,7 @@ namespace RhythmGamer
             // await _client.SetGameAsync(Config.game);
             await _client.SetStatusAsync((UserStatus)Enum.Parse(typeof(UserStatus), Config.status));
 
-            CommandServiceConfig csc = new CommandServiceConfig
-            {
-                CaseSensitiveCommands = false,
-                // DefaultRunMode = RunMode.Async,
-                LogLevel = config.LogLevel
-            };
-
-            var ch = new RhythmGamer.CommandHandler(_client, new CommandService(csc));
+            var ch = new RhythmGamer.CommandHandler(_client);
             await ch.InstallCommandsAsync();
 
             _client.Ready += () =>
@@ -181,10 +173,7 @@ namespace RhythmGamer
                     prefix = Config.prefix
                 });
 
-                // foreach (var item in ServerConfigs)
-                // {
-                //     File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
-                // }
+                CommandHandler._InteractionService.RegisterCommandsToGuildAsync(g.Id, true);
                 return Task.CompletedTask;
             };
             _client.LeftGuild += (g) =>
@@ -192,10 +181,6 @@ namespace RhythmGamer
                 l.Info($"Removing server {g.Name} from config", "MainAsync");
                 if (ServerConfigs.Exists(x => x.id == g.Id))
                     ServerConfigs.Remove(ServerConfigs.Find(x => x.id == g.Id)!);
-                // foreach (var item in ServerConfigs)
-                // {
-                //     File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
-                // }
                 return Task.CompletedTask;
             };
 
