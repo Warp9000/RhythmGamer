@@ -1,4 +1,3 @@
-using System.Net.WebSockets;
 using Discord;
 using Discord.Commands;
 using Newtonsoft.Json;
@@ -9,7 +8,7 @@ namespace RhythmGamer
     [Group("osu")]
     [Name("osu!")]
     [Summary("osu! related commands")]
-    public class OsuModule : ModuleBase<SocketCommandContext>
+    public class OsuTextModule : ModuleBase<SocketCommandContext>
     {
         [Command("setuser")]
         [Summary("Set your default osu! user")]
@@ -44,42 +43,31 @@ namespace RhythmGamer
 
         [Command("profile")]
         [Summary("Get an osu! profile")]
-        public async Task Profile([Name("username/id")] string? user = null, [Name("mode")][Summary("The gamemode to lookup")] string? mode = null)
+        public async Task Profile([Name("username")][Summary("The user to lookup")] string? user = null, [Name("mode")][Summary("The gamemode to lookup")] string? mode = null)
         {
-            try
+            var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode ?? "");
+            var EmbedBuilder = Program.DefaultEmbed();
+            if (response.http_code == 404)
             {
-                var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode ?? "");
-                var EmbedBuilder = Program.DefaultEmbed();
-                if (response.http_code == 404)
-                {
-                    EmbedBuilder.Title = "404";
-                    EmbedBuilder.Description = "User not found";
-                    EmbedBuilder.Color = 0xff0000;
-                    await ReplyAsync(embed: EmbedBuilder.Build());
-                    return;
-                }
-                EmbedBuilder.Author = new()
-                {
-                    Name = response.username,
-                    IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
-                };
-                var gc = response.statistics.grade_counts;
-                EmbedBuilder.Description =
-                $"**Rank:** {response.statistics.global_rank ?? 0}\n" +
-                $"**Level:** {response.statistics.level.current}\n" +
-                $"**PP:** {response.statistics.pp} **Acc:** {response.statistics.hit_accuracy}%\n" +
-                $"**Playcount:** {response.statistics.play_count} ({(ulong)response.statistics.play_time / 3600})\n" +
-                $"**Ranks:** SSH`{gc.ssh}` SS`{gc.ss}` SH`{gc.sh}` S`{gc.s}` A`{gc.a}`";
-                // EmbedBuilder.Footer = new()
-                // {
-
-                // };
+                EmbedBuilder.Title = "404";
+                EmbedBuilder.Description = "User not found";
+                EmbedBuilder.Color = 0xff0000;
                 await ReplyAsync(embed: EmbedBuilder.Build());
+                return;
             }
-            catch (Exception ex)
+            EmbedBuilder.Author = new()
             {
-                System.Console.WriteLine(ex);
-            }
+                Name = response.username + " - " + response.playmode,
+                IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
+            };
+            var gc = response.statistics.grade_counts;
+            EmbedBuilder.Description =
+            $"**Rank:** {response.statistics.global_rank ?? 0}\n" +
+            $"**Level:** {response.statistics.level.current}\n" +
+            $"**PP:** {response.statistics.pp} **Acc:** {Math.Round(response.statistics.hit_accuracy, 2)}%\n" +
+            $"**Playcount:** {response.statistics.play_count} ({(ulong)response.statistics.play_time / 3600} hrs)\n" +
+            $"**Ranks:** SSH`{gc.ssh}` SS`{gc.ss}` SH`{gc.sh}` S`{gc.s}` A`{gc.a}`";
+            await ReplyAsync(embed: EmbedBuilder.Build());
         }
     }
     #region internal stuff
@@ -114,7 +102,6 @@ namespace RhythmGamer
                 var json = JsonConvert.SerializeObject(Headers);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var responseMessage = await client.PostAsync("https://osu.ppy.sh/oauth/token", content);
-                System.Console.WriteLine(await responseMessage.Content.ReadAsStringAsync());
                 cc = JsonConvert.DeserializeObject<ClientCredentials>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
                 cc.created = DateTime.Now;
                 client.DefaultRequestHeaders.Clear();
@@ -173,8 +160,6 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}/{mode ?? ""}");
-            System.Console.WriteLine($"{baseUrl}/users/{username}/{mode ?? ""}");
-            System.Console.WriteLine(await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             File.WriteAllText("a", await responseMessage.Content.ReadAsStringAsync());
             content.http_code = (int)responseMessage.StatusCode;

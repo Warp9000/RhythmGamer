@@ -1,5 +1,9 @@
+using System.Collections.Generic;
 using Discord;
 using Discord.Commands;
+using Discord.Interactions;
+using Discord.WebSocket;
+using Newtonsoft.Json;
 
 namespace RhythmGamer
 {
@@ -18,6 +22,8 @@ namespace RhythmGamer
         {
             l.Verbose("Starting...", "CommandHandler");
             _client.MessageReceived += HandleCommandAsync;
+            _client.Ready += CreateSlashCommands;
+            _client.SlashCommandExecuted += SlashCommandHandler;
             await _commands.AddModulesAsync(assembly: System.Reflection.Assembly.GetExecutingAssembly(),
                                             services: null);
 
@@ -55,6 +61,62 @@ namespace RhythmGamer
                 context: context,
                 argPos: argPos,
                 services: null);
+        }
+        private async Task CreateSlashCommands()
+        {
+            try
+            {
+                List<SlashCommandBuilder> _cmds = new();
+                foreach (var module in _commands.Modules)
+                {
+                    var guildCommand = new SlashCommandBuilder();
+                    guildCommand.WithName(module.Group).WithDescription(module.Summary ?? "");
+                    foreach (var command in module.Commands)
+                    {
+                        var scob = new SlashCommandOptionBuilder()
+                            .WithName(command.Name)
+                            .WithDescription(command.Summary ?? "?")
+                            .WithType(ApplicationCommandOptionType.SubCommand);
+                        foreach (var param in command.Parameters)
+                        {
+                            scob.AddOption(new SlashCommandOptionBuilder()
+                            .WithName(param.Name ?? "Unknown")
+                            .WithRequired(!param.IsOptional)
+                            .WithDescription(param.Summary ?? "?")
+                            .WithType(ApplicationCommandOptionType.String)
+                            .AddChannelType(ChannelType.Text)
+                            .WithDefault(false));
+
+                        }
+                        guildCommand.AddOption(scob);
+                    }
+                    _cmds.Add(guildCommand);
+                }
+                foreach (var guild in _client.Guilds)
+                {
+                    foreach (var cmd in _cmds)
+                    {
+                        try
+                        {
+                            await guild.CreateApplicationCommandAsync(cmd.Build());
+                        }
+                        catch (Exception ex)
+                        {
+                            l.Error("", "CreateSlashCommands", ex);
+                        }
+                    }
+                }
+                _client.Ready -= CreateSlashCommands;
+                return;
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine(ex);
+            }
+        }
+        private async Task SlashCommandHandler(SocketSlashCommand command)
+        {
+
         }
     }
 }
