@@ -72,10 +72,10 @@ namespace RhythmGamer
                 }
                 if (response.error != "none")
                 {
-                    var eb = Program.DefaultEmbed();
-                    eb.Title = response.http_code.ToString();
-                    eb.Description = "Please report this to Warp#8703";
-                    await RespondAsync(embed: eb.Build());
+                    EmbedBuilder.Title = response.http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
                     return;
                 }
                 if (mode == null)
@@ -92,6 +92,78 @@ namespace RhythmGamer
                 $"**PP:** {response.statistics.pp} **Acc:** {Math.Round(response.statistics.hit_accuracy, 2)}%\n" +
                 $"**Playcount:** {response.statistics.play_count} ({(ulong)response.statistics.play_time / 3600} hrs)\n" +
                 $"**Ranks:** SSH`{gc.ssh}` SS`{gc.ss}` SH`{gc.sh}` S`{gc.s}` A`{gc.a}`";
+                await RespondAsync(embed: EmbedBuilder.Build());
+            }
+            catch (Exception ex)
+            {
+                l.Error(ex.ToString());
+            }
+        }
+        [SlashCommand("top", "Get the top plays from a user")]
+        public async Task Top([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuData.GameMode? mode = null)
+        {
+            try
+            {
+                var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode.ToString());
+                var EmbedBuilder = Program.DefaultEmbed();
+                if (response.http_code == 404)
+                {
+                    EmbedBuilder.Title = "404";
+                    EmbedBuilder.Description = "User not found";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (response.error != "none")
+                {
+                    EmbedBuilder.Title = response.http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                var response2 = await osuInternal.GetUserTop(response.id, mode.ToString());
+                // if (response2.http_code == 404)
+                // {
+                //     EmbedBuilder.Title = "404";
+                //     EmbedBuilder.Description = "User not found";
+                //     EmbedBuilder.Color = 0xff0000;
+                //     await RespondAsync(embed: EmbedBuilder.Build());
+                //     return;
+                // }
+                // if (response2.error != "none")
+                // {
+                //     EmbedBuilder.Title = response2.http_code.ToString();
+                //     EmbedBuilder.Description = "Please report this to Warp#8703";
+                //     EmbedBuilder.Color = 0xff0000;
+                //     await RespondAsync(embed: EmbedBuilder.Build());
+                //     return;
+                // }
+                if (mode == null)
+                    mode = (osuData.GameMode)Enum.Parse(typeof(osuData.GameMode), response.playmode);
+                EmbedBuilder.Author = new()
+                {
+                    Name = response.username + " - " + mode.ToString() + " top plays",
+                    IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
+                };
+                osuData.osuScore currScore = response2[0];
+                string mods = "";
+                for (int i = 0; i < 5; i++)
+                {
+                    currScore = response2[i];
+                    foreach (var mod in currScore.mods)
+                    {
+                        mods += mod;
+                    }
+                    EmbedBuilder.AddField(new EmbedFieldBuilder()
+                    .WithName($"**{i + 1}.** {currScore.beatmapset.title} **+{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]")
+                    .WithValue(
+                        $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
+                        $"`{currScore.score}` | {currScore.max_combo}x | [{currScore.statistics.count_300}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
+                        $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f> )"
+                    ));
+                }
+
                 await RespondAsync(embed: EmbedBuilder.Build());
             }
             catch (Exception ex)
@@ -194,12 +266,12 @@ namespace RhythmGamer
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScores> GetUserTop(int id)
+        public static async Task<osuData.osuScore[]> GetUserTop(int id, string? mode)
         {
             await Authorize();
-            var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/best");
-            var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
-            content.http_code = (int)responseMessage.StatusCode;
+            var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}"));
+            var content = JsonConvert.DeserializeObject<osuData.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuData.osuScore[1];
+            content[0].http_code = (int)responseMessage.StatusCode;
             return content;
         }
         public static async Task<osuData.osuScores> GetUserRecent(int id)
@@ -318,9 +390,9 @@ namespace RhythmGamer
             public string error = "none";
             public int http_code;
             // --------------------------------------------------
-            public int id;
-            public int best_id;
-            public int user_id;
+            public ulong id;
+            public ulong best_id;
+            public ulong user_id;
             public float accuracy;
             public string[]? mods;
             public int score;
@@ -339,8 +411,13 @@ namespace RhythmGamer
             public osuBeatmapset? beatmapset;
             public int? rank_country;
             public int? rank_global;
-            public float? weight;
-            public int? user;
+            public _weight? weight;
+            public class _weight
+            {
+                public float percentage;
+                public float pp;
+            }
+            public osuUser? user;
             public string? match;
         }
         public class osuScores
