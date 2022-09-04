@@ -6,82 +6,98 @@ using System.Text;
 namespace RhythmGamer
 {
     // [Group("osu", "osu! related commands")]
-    public class OsuTextModule : InteractionModuleBase<SocketInteractionContext>
+    public class OsuModule : InteractionModuleBase<SocketInteractionContext>
     {
         [SlashCommand("setuser", "Set your default osu! user")]
         public async Task SetUser([Summary("Username", "Your osu! username which the bot should default to")] string username)
         {
-            var response = await osuInternal.GetUser(username, null);
-            var EmbedBuilder = Program.DefaultEmbed();
-            if (response.http_code == 404)
+            try
             {
-                EmbedBuilder.Title = "404";
-                EmbedBuilder.Description = "User not found";
-                EmbedBuilder.Color = 0xff0000;
-                await RespondAsync(embed: EmbedBuilder.Build());
-                return;
-            }
-            if (response.error != "none")
-            {
-                EmbedBuilder.Title = response.http_code.ToString();
-                EmbedBuilder.Description = "Please report this to Warp#8703";
-                await RespondAsync(embed: EmbedBuilder.Build());
-                return;
-            }
-            if (Program.UserConfigs.Exists(x => x.id == Context.User.Id))
-            {
-                Program.UserConfigs.Find(x => x.id == Context.User.Id)!.osu.username = response.username;
-            }
-            else
-            {
-                UserConfig user = new()
+                var response = await osuInternal.GetUser(username, null);
+                var EmbedBuilder = Program.DefaultEmbed();
+                if (response.http_code == 404)
                 {
-                    id = Context.User.Id,
-                    osu =
+                    EmbedBuilder.Title = "404";
+                    EmbedBuilder.Description = "User not found";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (response.error != "none")
+                {
+                    EmbedBuilder.Title = response.http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (Program.UserConfigs.Exists(x => x.id == Context.User.Id))
+                {
+                    Program.UserConfigs.Find(x => x.id == Context.User.Id)!.osu.username = response.username;
+                }
+                else
+                {
+                    UserConfig user = new()
+                    {
+                        id = Context.User.Id,
+                        osu =
                     {
                         username = response.username
                     }
-                };
-                Program.UserConfigs.Add(user);
+                    };
+                    Program.UserConfigs.Add(user);
+                }
+                EmbedBuilder.Description = $"Set default user to `{response.username}`";
+                await RespondAsync(embed: EmbedBuilder.Build());
             }
-            EmbedBuilder.Description = $"Set default user to `{response.username}`";
-            await RespondAsync(embed: EmbedBuilder.Build());
+            catch (Exception ex)
+            {
+                l.Error(ex.ToString());
+            }
         }
 
         [SlashCommand("profile", "Get an osu! profile")]
-        public async Task Profile([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] string? mode = null)
+        public async Task Profile([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuData.GameMode? mode = null)
         {
-            var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode ?? "");
-            var EmbedBuilder = Program.DefaultEmbed();
-            if (response.http_code == 404)
+            try
             {
-                EmbedBuilder.Title = "404";
-                EmbedBuilder.Description = "User not found";
-                EmbedBuilder.Color = 0xff0000;
+                var response = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode.ToString());
+                var EmbedBuilder = Program.DefaultEmbed();
+                if (response.http_code == 404)
+                {
+                    EmbedBuilder.Title = "404";
+                    EmbedBuilder.Description = "User not found";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (response.error != "none")
+                {
+                    var eb = Program.DefaultEmbed();
+                    eb.Title = response.http_code.ToString();
+                    eb.Description = "Please report this to Warp#8703";
+                    await RespondAsync(embed: eb.Build());
+                    return;
+                }
+                if (mode == null)
+                    mode = (osuData.GameMode)Enum.Parse(typeof(osuData.GameMode), response.playmode);
+                EmbedBuilder.Author = new()
+                {
+                    Name = response.username + " - " + mode.ToString(),
+                    IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
+                };
+                var gc = response.statistics.grade_counts;
+                EmbedBuilder.Description =
+                $"**Rank:** {response.statistics.global_rank ?? 0}\n" +
+                $"**Level:** {response.statistics.level.current}\n" +
+                $"**PP:** {response.statistics.pp} **Acc:** {Math.Round(response.statistics.hit_accuracy, 2)}%\n" +
+                $"**Playcount:** {response.statistics.play_count} ({(ulong)response.statistics.play_time / 3600} hrs)\n" +
+                $"**Ranks:** SSH`{gc.ssh}` SS`{gc.ss}` SH`{gc.sh}` S`{gc.s}` A`{gc.a}`";
                 await RespondAsync(embed: EmbedBuilder.Build());
-                return;
             }
-            if (response.error != "none")
+            catch (Exception ex)
             {
-                var eb = Program.DefaultEmbed();
-                eb.Title = response.http_code.ToString();
-                eb.Description = "Please report this to Warp#8703";
-                await RespondAsync(embed: eb.Build());
-                return;
+                l.Error(ex.ToString());
             }
-            EmbedBuilder.Author = new()
-            {
-                Name = response.username + " - " + response.playmode,
-                IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
-            };
-            var gc = response.statistics.grade_counts;
-            EmbedBuilder.Description =
-            $"**Rank:** {response.statistics.global_rank ?? 0}\n" +
-            $"**Level:** {response.statistics.level.current}\n" +
-            $"**PP:** {response.statistics.pp} **Acc:** {Math.Round(response.statistics.hit_accuracy, 2)}%\n" +
-            $"**Playcount:** {response.statistics.play_count} ({(ulong)response.statistics.play_time / 3600} hrs)\n" +
-            $"**Ranks:** SSH`{gc.ssh}` SS`{gc.ss}` SH`{gc.sh}` S`{gc.s}` A`{gc.a}`";
-            await RespondAsync(embed: EmbedBuilder.Build());
         }
     }
     #region internal stuff
@@ -175,7 +191,6 @@ namespace RhythmGamer
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}/{mode ?? ""}");
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
-            File.WriteAllText("a", await responseMessage.Content.ReadAsStringAsync());
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
@@ -400,7 +415,12 @@ namespace RhythmGamer
                 public int[]? data;
             }
             public int ranked_beatmapset_count;
-            public int[]? replays_watched_counts;
+            public _replays_watched_counts[]? replays_watched_counts;
+            public class _replays_watched_counts
+            {
+                public string start_date = "";
+                public int count;
+            }
             public int scores_best_count;
             public int scores_first_count;
             public int scores_recent_count;
@@ -451,14 +471,21 @@ namespace RhythmGamer
                 public float progress;
             }
             public int maximum_combo;
-            public int play_count;
+            public ulong play_count;
             public float play_time;
             public float pp;
-            public uint? global_rank;
-            public uint ranked_score;
+            public ulong? global_rank;
+            public ulong ranked_score;
             public int replays_watched_by_others;
-            public uint total_hits;
+            public ulong total_hits;
             public ulong total_score;
+        }
+        public enum GameMode
+        {
+            osu = 1,
+            taiko = 2,
+            fruits = 3,
+            mania = 4
         }
     }
     #endregion

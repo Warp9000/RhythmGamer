@@ -19,8 +19,13 @@ namespace RhythmGamer
 
         public async Task InstallCommandsAsync()
         {
-            _client.Ready += RegisterCommands;
             l.Verbose("Starting...", "CommandHandler");
+            _client.Ready += () =>
+            {
+                Task.Run(RegisterCommands);
+                return Task.CompletedTask;
+                l.Debug("Added RegisterCommands to ready handler", "InstallCommands");
+            };
             await _InteractionService.AddModulesAsync(assembly: System.Reflection.Assembly.GetExecutingAssembly(),
                                             services: null);
 
@@ -42,6 +47,7 @@ namespace RhythmGamer
             foreach (var guild in _client.Guilds)
             {
                 await _InteractionService.RegisterCommandsToGuildAsync(guild.Id, true);
+                l.Debug("Added commands to " + guild.Id, "RegisterCommands");
             }
         }
 

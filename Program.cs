@@ -6,7 +6,6 @@ namespace RhythmGamer
     public class GlobalConfig
     {
         public string token { get; set; } = "";
-        public string prefix { get; set; } = "";
         public string status { get; set; } = "";
         public string[] game { get; set; } = new string[1];
         public string[] gameType { get; set; } = new string[1];
@@ -20,7 +19,6 @@ namespace RhythmGamer
     public class ServerConfig
     {
         public ulong id { get; set; } = 0;
-        public string prefix { get; set; } = "No Prefix Set";
     }
     public class UserConfig
     {
@@ -30,7 +28,7 @@ namespace RhythmGamer
     public class Program
     {
         public static Task Main(string[] args) => new Program().MainAsync();
-        public static string version = "0.0 Dev Build";
+        public static string version = "0.0.1 Public Alpha";
         public static Discord.WebSocket.DiscordSocketClient? _client;
         public static Discord.WebSocket.DiscordSocketConfig config = new Discord.WebSocket.DiscordSocketConfig();
         public static GlobalConfig Config = new GlobalConfig();
@@ -40,6 +38,7 @@ namespace RhythmGamer
         int CurrentActivity = 0;
         public static List<ServerConfig> ServerConfigs = new List<ServerConfig>();
         public static List<UserConfig> UserConfigs = new List<UserConfig>();
+        public static string embedIconUrl = "";
         public async Task MainAsync()
         {
             Console.Title = "RhythmGamer " + version;
@@ -136,7 +135,6 @@ namespace RhythmGamer
                         ServerConfigs.Add(new ServerConfig
                         {
                             id = server.Id,
-                            prefix = Config.prefix
                         });
                     }
                 }
@@ -144,6 +142,8 @@ namespace RhythmGamer
                 {
                     File.WriteAllText($"Data/Guilds/{item.id}.json", JsonConvert.SerializeObject(item, Formatting.Indented));
                 }
+
+                embedIconUrl = _client.CurrentUser.GetAvatarUrl();
 
                 _client.Ready -= () =>
                 {
@@ -170,7 +170,6 @@ namespace RhythmGamer
                 ServerConfigs.Add(new ServerConfig
                 {
                     id = g.Id,
-                    prefix = Config.prefix
                 });
 
                 CommandHandler._InteractionService.RegisterCommandsToGuildAsync(g.Id, true);
@@ -221,7 +220,6 @@ namespace RhythmGamer
                                 ServerConfigs.Add(new ServerConfig
                                 {
                                     id = server.Id,
-                                    prefix = Config.prefix
                                 });
                         }
                         foreach (var item in ServerConfigs)
@@ -272,10 +270,13 @@ namespace RhythmGamer
         }
         public static EmbedBuilder DefaultEmbed()
         {
-            return new EmbedBuilder().WithColor(new Discord.Color(0xff6000)).WithCurrentTimestamp().WithFooter(new EmbedFooterBuilder()
+            return new EmbedBuilder()
+            .WithColor(new Discord.Color(0x3dcbb2))
+            .WithCurrentTimestamp()
+            .WithFooter(new EmbedFooterBuilder()
             {
                 Text = $"RhythmGamer {version}",
-                IconUrl = "https://a.ppy.sh/24087648?1642782431.jpeg"
+                IconUrl = embedIconUrl
             });
         }
         public static ServerConfig GetServerConfig(ulong id)
