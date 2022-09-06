@@ -153,17 +153,29 @@ namespace RhythmGamer
                 {
                     currScore = response2[i];
                     currMap = await osuInternal.GetBeatmap(currScore.beatmap.id);
+                    mods = "";
                     foreach (var mod in currScore.mods)
                     {
                         mods += mod;
                     }
-                    mods = "";
-                    EmbedBuilder.Description +=
-                        $"**{i + 1}. {currScore.beatmapset.title} +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
-                        $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
-                        $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_300}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
-                        $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n"
-                    ;
+                    switch (currMap.mode)
+                    {
+                        case "mania":
+                            EmbedBuilder.Description +=
+                                $"**{i + 1}. [{currScore.beatmapset.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
+                                $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
+                                $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_geki}/{currScore.statistics.count_300}/{currScore.statistics.count_katu}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
+                                $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n";
+                            break;
+                        default:
+                            EmbedBuilder.Description +=
+                                $"**{i + 1}. [{currScore.beatmapset.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
+                                $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
+                                $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_300}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
+                                $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n";
+                            break;
+                    }
+
                 }
 
                 await RespondAsync(embed: EmbedBuilder.Build());
