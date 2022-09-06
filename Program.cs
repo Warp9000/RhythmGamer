@@ -19,11 +19,12 @@ namespace RhythmGamer
     public class ServerConfig
     {
         public ulong id { get; set; } = 0;
+        public osuInternal.guildConfig osu { get; set; } = new();
     }
     public class UserConfig
     {
         public ulong id { get; set; } = 0;
-        public osuInternal.config osu { get; set; } = new();
+        public osuInternal.userConfig osu { get; set; } = new();
     }
     public class Program
     {
