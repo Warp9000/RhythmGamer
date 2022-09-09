@@ -163,14 +163,14 @@ namespace RhythmGamer
                         case "mania":
                             EmbedBuilder.Description +=
                                 $"**{i + 1}. [{currScore.beatmapset.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
-                                $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
+                                $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp ?? -1, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
                                 $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_geki}/{currScore.statistics.count_300}/{currScore.statistics.count_katu}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
                                 $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n";
                             break;
                         default:
                             EmbedBuilder.Description +=
                                 $"**{i + 1}. [{currScore.beatmapset.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
-                                $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
+                                $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp ?? -1, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
                                 $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_300}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
                                 $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n";
                             break;
