@@ -160,7 +160,7 @@ namespace RhythmGamer
                     mods = "";
                     EmbedBuilder.Description +=
                         $"**{i + 1}. {currScore.beatmapset.title} +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
-                        $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
+                        $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp.Value, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
                         $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_300}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
                         $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n"
                     ;
@@ -225,6 +225,12 @@ namespace RhythmGamer
                     }
                     if (mapId != 0)
                     {
+                        var sc = Program.GetServerConfig(Context.Guild.Id);
+                        if (sc.osu.lastMapChannel.ContainsKey(Context.Channel.Id))
+                            sc.osu.lastMapChannel[Context.Channel.Id] = mapId;
+                        else
+                            sc.osu.lastMapChannel.Add(Context.Channel.Id, mapId);
+                        Program.SetServerConfig(Context.Guild.Id, sc);
                         var response = await osuInternal.GetBeatmap(mapId);
                         EmbedBuilder.WithTitle((response.beatmapset ?? new()).title).WithUrl(response.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{response.beatmapset_id}l.jpg")
                         .WithDescription(
@@ -270,6 +276,132 @@ namespace RhythmGamer
                         $"**OD:** {item.ar} | **HP:** {item.drain} | **CS:** {item.cs}"
                         );
                 }
+                await RespondAsync(embed: EmbedBuilder.Build());
+            }
+            catch (Exception ex)
+            {
+                l.Error(ex.ToString());
+            }
+        }
+        [SlashCommand("recent", "Get a users recent plays within 24 hours")]
+        public async Task Recent([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuData.GameMode? mode = null)
+        {
+            try
+            {
+                var EmbedBuilder = Program.DefaultEmbed();
+                var userR = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, mode.ToString());
+                if (userR.http_code == 404)
+                {
+                    EmbedBuilder.Title = "404";
+                    EmbedBuilder.Description = "User not found";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (userR.error != "none")
+                {
+                    EmbedBuilder.Title = userR.http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                var response = await osuInternal.GetUserRecent(userR.id, mode.ToString());
+                if (response.Length == 0)
+                {
+                    EmbedBuilder.Title = "No recent plays found for user";
+                    EmbedBuilder.Description = @"¯\_(ツ)_/¯";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (response[0].error != "none")
+                {
+                    EmbedBuilder.Title = response[0].http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                var map = await osuInternal.GetBeatmap(response[0].beatmap.id);
+                EmbedBuilder.WithTitle(response[0].beatmapset.title).WithUrl(response[0].beatmap.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{response[0].beatmapset.id}l.jpg")
+                .WithDescription(
+                    $"`{response[0].rank.ToUpper()}` | **{response[0].pp ?? -1} PP** | {Math.Round(response[0].accuracy * 100, 2)}%\n" +
+                    $"{response[0].score} | x{response[0].max_combo}/{map.max_combo}"
+                ).WithAuthor(new EmbedAuthorBuilder()
+                    .WithName(userR.username).WithIconUrl(userR.avatar_url).WithUrl("https://osu.ppy.sh/users/" + userR.id));
+                await RespondAsync(embed: EmbedBuilder.Build());
+            }
+            catch (Exception ex)
+            {
+                l.Error(ex.ToString());
+            }
+        }
+        [SlashCommand("compare", "Get a users scores on the last map in chat")]
+        public async Task Compare([Summary("Username", "The user to lookup")] string? user = null)
+        {
+            try
+            {
+                var EmbedBuilder = Program.DefaultEmbed();
+                var userR = await osuInternal.GetUser(user ?? Program.GetUserConfig(Context.User.Id).osu.username ?? Context.User.Username, null);
+                if (userR.http_code == 404)
+                {
+                    EmbedBuilder.Title = "404";
+                    EmbedBuilder.Description = "User not found";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (userR.error != "none")
+                {
+                    EmbedBuilder.Title = userR.http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                var mapR = await osuInternal.GetBeatmap(Program.GetServerConfig(Context.Guild.Id).osu.lastMapChannel[Context.Channel.Id]);
+                if (mapR.http_code == 404)
+                {
+                    EmbedBuilder.Title = "404";
+                    EmbedBuilder.Description = "Map not found";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (mapR.error != "none")
+                {
+                    EmbedBuilder.Title = mapR.http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                osuData.osuScores response = await osuInternal.GetBeatmapUserScores(mapR.id, userR.id);
+                if (response.scores.Count() == 0)
+                {
+                    EmbedBuilder.Title = "No scores found for user";
+                    EmbedBuilder.Description = @"¯\_(ツ)_/¯";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                if (response.error != "none")
+                {
+                    EmbedBuilder.Title = response.http_code.ToString();
+                    EmbedBuilder.Description = "Please report this to Warp#8703";
+                    EmbedBuilder.Color = 0xff0000;
+                    await RespondAsync(embed: EmbedBuilder.Build());
+                    return;
+                }
+                response.scores.Sort((x, y) => (y.pp ?? -1).CompareTo((x.pp ?? -1)));
+                var score = response.scores[0];
+                EmbedBuilder.WithTitle(mapR.beatmapset.title).WithUrl(mapR.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{mapR.beatmapset.id}l.jpg")
+                .WithDescription(
+                    $"`{score.rank.ToUpper()}` | **{score.pp ?? -1} PP** | {Math.Round(score.accuracy * 100, 2)}%\n" +
+                    $"{score.score} | x{score.max_combo}/{mapR.max_combo}"
+                ).WithAuthor(new EmbedAuthorBuilder()
+                    .WithName(userR.username).WithIconUrl(userR.avatar_url).WithUrl("https://osu.ppy.sh/users/" + userR.id));
                 await RespondAsync(embed: EmbedBuilder.Build());
             }
             catch (Exception ex)
@@ -324,7 +456,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/{id}");
-            File.WriteAllText("GetBeatmapset", $"{baseUrl}/beatmapsets/{id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetBeatmapset", $"// {baseUrl}/beatmapsets/{id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapset>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -333,7 +465,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/search?q={search}");
-            File.WriteAllText("GetBeatmapsets", $"{baseUrl}/beatmapsets/search?q={search}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetBeatmapsets", $"// {baseUrl}/beatmapsets/search?q={search}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapsets>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -342,7 +474,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/lookup?id={id}");
-            File.WriteAllText("GetBeatmap", $"{baseUrl}/beatmaps/lookup?id={id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetBeatmap", $"// {baseUrl}/beatmaps/lookup?id={id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmap>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -351,16 +483,16 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{id}/scores");
-            File.WriteAllText("GetBeatmapScores", $"{baseUrl}/beatmaps/{id}/scores" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetBeatmapScores", $"// {baseUrl}/beatmaps/{id}/scores" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScores> GetBeatmapUserScores(int mapId, int userId)
+        public static async Task<osuData.osuScores> GetBeatmapUserScores(ulong mapId, ulong userId)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all");
-            File.WriteAllText("GetBeatmapUserScores", $"{baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetBeatmapUserScores", $"// {baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -369,7 +501,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/{mode ?? ""}");
-            File.WriteAllText("GetUserId", $"{baseUrl}/users/{id}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetUserId", $"// {baseUrl}/users/{id}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -378,27 +510,29 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}/{mode ?? ""}");
-            File.WriteAllText("GetUserString", $"{baseUrl}/users/{username}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetUserString", $"// {baseUrl}/users/{username}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScore[]> GetUserTop(int id, string? mode)
+        public static async Task<osuData.osuScore[]> GetUserTop(ulong id, string? mode)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}"));
-            File.WriteAllText("GetUserTop", $"{baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            File.WriteAllText("GetUserTop", $"// {baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuData.osuScore[1];
             content[0].http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScores> GetUserRecent(int id)
+        public static async Task<osuData.osuScore[]> GetUserRecent(ulong id, string? mode)
         {
             await Authorize();
-            var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/recent");
-            File.WriteAllText("GetUserRecent", $"{baseUrl}/users/{id}/scores/recent" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
-            content.http_code = (int)responseMessage.StatusCode;
+            var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/recent?include_fails=1" + (string.IsNullOrEmpty(mode) ? "" : $"&q={mode}"));
+            File.WriteAllText("GetUserRecent", $"// {baseUrl}/users/{id}/scores/recent?include_fails=1" + (string.IsNullOrEmpty(mode) ? "" : $"$q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            var content = JsonConvert.DeserializeObject<osuData.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuData.osuScore[1];
+            // if (content.Length == 0)
+            //     content = new osuData.osuScore[1];
+            // content[0].http_code = (int)responseMessage.StatusCode;
             return content;
         }
     }
@@ -453,7 +587,7 @@ namespace RhythmGamer
             public osuCovers? covers;
             public string creator = "";
             public int favourite_count;
-            public int id;
+            public ulong id;
             public bool nsfw;
             public int play_count;
             public string preview_url = "";
@@ -510,7 +644,7 @@ namespace RhythmGamer
             public int http_code;
             // --------------------------------------------------
             public ulong id;
-            public ulong best_id;
+            public ulong? best_id;
             public ulong user_id;
             public float accuracy;
             public string[]? mods;
@@ -519,7 +653,7 @@ namespace RhythmGamer
             public bool perfect;
             public osuScoreStatistics statistics = new osuScoreStatistics();
             public bool passed;
-            public float pp;
+            public float? pp;
             public string rank = "";
             public DateTime created_at;
             public string mode = "";
@@ -543,7 +677,7 @@ namespace RhythmGamer
         {
             public string error = "none";
             public int http_code;
-            public osuScore[]? scores;
+            public List<osuScore>? scores;
         }
         public class osuScoreStatistics
         {
@@ -569,7 +703,7 @@ namespace RhythmGamer
             public string avatar_url = "";
             public string country_code = "";
             public string default_group = "";
-            public int id;
+            public ulong id;
             public bool is_active;
             public bool is_bot;
             public bool is_deleted;

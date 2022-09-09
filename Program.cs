@@ -289,6 +289,18 @@ namespace RhythmGamer
             }
             return new ServerConfig();
         }
+        public static void SetServerConfig(ulong id, ServerConfig sc)
+        {
+            for (var i = 0; i < ServerConfigs.Count; i++)
+            {
+                if (ServerConfigs[i].id == id)
+                {
+                    ServerConfigs[i] = sc;
+                    return;
+                }
+            }
+            ServerConfigs.Add(sc);
+        }
         public static UserConfig GetUserConfig(ulong id)
         {
             foreach (var user in UserConfigs)
