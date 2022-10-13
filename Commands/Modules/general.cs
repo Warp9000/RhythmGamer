@@ -15,6 +15,7 @@ namespace RhythmGamer
             e.Description = "By Warp#8703";
             e.ThumbnailUrl = Program.embedIconUrl;
             // e.Url = "https://warp.tf";
+            e.AddField("Supported Games", "[osu!](https://osu.ppy.sh/)\n[Quaver](https://quavergame.com/)\nAnd more to come!\nFeel free to suggest games in the support server");
             e.AddField("Links", "[Discord](https://discord.gg/7GtmSe7npQ)\n[Source Code](https://github.com/WarpABoi/RhythmGamer)");
             await RespondAsync(embed: e.Build());
         }

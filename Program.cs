@@ -25,6 +25,7 @@ namespace RhythmGamer
     {
         public ulong id { get; set; } = 0;
         public osuInternal.userConfig osu { get; set; } = new();
+        public QuaverInternal.userConfig quaver { get; set; } = new();
     }
     public class Program
     {
@@ -306,7 +307,10 @@ namespace RhythmGamer
             foreach (var user in UserConfigs)
             {
                 if (user.id == id)
+                {
+                    l.Debug($"Found user {id} in config", "GetUserConfig");
                     return user;
+                }
             }
             return new UserConfig();
         }

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace RhythmGamer
 {
-    // [Group("osu", "osu! related commands")]
+    [Group("osu", "osu! related commands")]
     public class OsuModule : InteractionModuleBase<SocketInteractionContext>
     {
         [SlashCommand("setuser", "Set your default osu! user")]
@@ -468,7 +468,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/{id}");
-            File.WriteAllText("GetBeatmapset", $"// {baseUrl}/beatmapsets/{id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetBeatmapset", $"// {baseUrl}/beatmapsets/{id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapset>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -477,7 +477,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/search?q={search}");
-            File.WriteAllText("GetBeatmapsets", $"// {baseUrl}/beatmapsets/search?q={search}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetBeatmapsets", $"// {baseUrl}/beatmapsets/search?q={search}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmapsets>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -486,7 +486,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/lookup?id={id}");
-            File.WriteAllText("GetBeatmap", $"// {baseUrl}/beatmaps/lookup?id={id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetBeatmap", $"// {baseUrl}/beatmaps/lookup?id={id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuBeatmap>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -495,7 +495,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{id}/scores");
-            File.WriteAllText("GetBeatmapScores", $"// {baseUrl}/beatmaps/{id}/scores" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetBeatmapScores", $"// {baseUrl}/beatmaps/{id}/scores" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -504,7 +504,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all");
-            File.WriteAllText("GetBeatmapUserScores", $"// {baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetBeatmapUserScores", $"// {baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -513,7 +513,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/{mode ?? ""}");
-            File.WriteAllText("GetUserId", $"// {baseUrl}/users/{id}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetUserId", $"// {baseUrl}/users/{id}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -522,7 +522,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}/{mode ?? ""}");
-            File.WriteAllText("GetUserString", $"// {baseUrl}/users/{username}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetUserString", $"// {baseUrl}/users/{username}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
@@ -531,7 +531,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}"));
-            File.WriteAllText("GetUserTop", $"// {baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetUserTop", $"// {baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuData.osuScore[1];
             content[0].http_code = (int)responseMessage.StatusCode;
             return content;
@@ -540,7 +540,7 @@ namespace RhythmGamer
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/recent?include_fails=1" + (string.IsNullOrEmpty(mode) ? "" : $"&q={mode}"));
-            File.WriteAllText("GetUserRecent", $"// {baseUrl}/users/{id}/scores/recent?include_fails=1" + (string.IsNullOrEmpty(mode) ? "" : $"$q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
+            // File.WriteAllText("GetUserRecent", $"// {baseUrl}/users/{id}/scores/recent?include_fails=1" + (string.IsNullOrEmpty(mode) ? "" : $"$q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
             var content = JsonConvert.DeserializeObject<osuData.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuData.osuScore[1];
             // if (content.Length == 0)
             //     content = new osuData.osuScore[1];
