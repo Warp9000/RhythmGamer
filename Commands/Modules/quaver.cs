@@ -177,17 +177,79 @@ namespace RhythmGamer
         }
 
         [SlashCommand("top", "Get a Quaver users top plays")]
-        public async Task Top()
+        public async Task Top([Summary("Username")] string? username = null, [Summary("Gamemode")] QuaverInternal.QuaverMode? mode = null, [Summary("page")] int page = 0)
         {
-            await RespondAsync("Not implemented yet");
+            try
+            {
+                int userId = 0;
+                if (username == null)
+                {
+                    var userConfig = Program.GetUserConfig(Context.User.Id);
+                    if (userConfig.quaver.username == null)
+                    {
+                        await RespondAsync("You have not set a default Quaver user and you did not provide one");
+                        return;
+                    }
+                    else
+                    {
+                        username = userConfig.quaver.username;
+                        if (mode == null)
+                            mode = userConfig.quaver.mode ?? QuaverInternal.QuaverMode.Key4;
+                    }
+                }
+                if (!int.TryParse(username, out userId))
+                {
+                    var userSearch = (await QuaverAPI.API.SearchUsersAsync(username)).First();
+                    if (userSearch == null)
+                    {
+                        await RespondAsync("User not found");
+                        return;
+                    }
+                    userId = userSearch.id;
+                }
+                var user = await QuaverAPI.API.GetUserAsync(userId);
+                if (user == null)
+                {
+                    await RespondAsync("User not found");
+                    return;
+                }
+                if (mode == null)
+                    mode = QuaverInternal.QuaverMode.Key4;
+                var response = await QuaverAPI.API.ApiCallAsync($"/users/scores/best?id={userId}&mode={(int)mode!}&limit=5&page={page}");
+                var scores = JsonConvert.DeserializeObject<QuaverInternal.qscores>(response)!.scores;
+                if (scores.Count == 0)
+                {
+                    await RespondAsync("No plays found");
+                    return;
+                }
+                Embed[] embeds = new Embed[5];
+                for (int i = 0; i < Math.Min(scores.Count, 5); i++)
+                {
+                    var score = scores[i];
+                    embeds[i] = Program.DefaultEmbed()
+                    .WithAuthor($"{score.map.title} [{score.map.difficultyName}]", user.info.avatarUrl)
+                    .WithDescription($"[Map](https://quavergame.com/mapsets/map/{score.map.id})")
+                    .WithColor(Color.Blue)
+                    .WithThumbnailUrl($"https://cdn.quavergame.com/mapsets/{score.map.id}.jpg")
+                    .AddField("Score", $"**Score**\t{score.totalScore.ToString("N0")}\n**Accuracy**\t{score.accuracy.ToString("N2")}%\n**Max Combo**\t{score.maxCombo.ToString("N0")}\n**P-Rating**\t{score.rating.ToString("N2")}", true)
+                    .AddField("Stats", $"**Mods**\t{score.modsString}\n**Scroll Sp.**\t{(score.scrollSpeed / 10).ToString("N1")}\n**Grade**\t{score.grade}", true)
+                    .AddField("Judgements", $"**Marv**\t{score.countMarvellous.ToString("N0")}\n**Perf**\t{score.countPerfect.ToString("N0")}\n**Great**\t{score.countGreat.ToString("N0")}\n**Good**\t{score.countGood.ToString("N0")}\n**Okay**\t{score.countOkay.ToString("N0")}\n**Miss**\t{score.countMiss.ToString("N0")}", true)
+                    .Build();
+                }
+                await RespondAsync(embeds: embeds);
+            }
+            catch (Exception ex)
+            {
+                l.Critical(ex.Message, "Top", ex);
+                await RespondAsync("An error occured");
+            }
         }
 
         [SlashCommand("map", "Get a Quaver map")]
-        public async Task Map()
+        public async Task Map([Summary("id")] int mapId, [Summary("Search")] string search, [Summary("Gamemode")] QuaverInternal.QuaverMode? mode = null)
         {
             await RespondAsync("Not implemented yet");
         }
-
     }
     public class QuaverInternal
     {
@@ -200,6 +262,18 @@ namespace RhythmGamer
         {
             Key4 = 1,
             Key7 = 2
+        }
+        public class score : QuaverAPI.Structures.Score
+        {
+            [JsonProperty("mods")]
+            public new long mods;
+        }
+        public class qscores
+        {
+            [JsonProperty("status")]
+            public int status;
+            [JsonProperty("scores")]
+            public List<score> scores;
         }
     }
 }
