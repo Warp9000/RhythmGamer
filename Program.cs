@@ -20,6 +20,7 @@ namespace RhythmGamer
     {
         public ulong id { get; set; } = 0;
         public osuInternal.guildConfig osu { get; set; } = new();
+        public QuaverInternal.guildConfig quaver { get; set; } = new();
     }
     public class UserConfig
     {

@@ -56,7 +56,7 @@ namespace RhythmGamer
         }
 
         [SlashCommand("profile", "Get an osu! profile")]
-        public async Task Profile([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuData.GameMode? mode = null)
+        public async Task Profile([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuStructures.GameMode? mode = null)
         {
             try
             {
@@ -79,7 +79,7 @@ namespace RhythmGamer
                     return;
                 }
                 if (mode == null)
-                    mode = (osuData.GameMode)Enum.Parse(typeof(osuData.GameMode), response.playmode);
+                    mode = (osuStructures.GameMode)Enum.Parse(typeof(osuStructures.GameMode), response.playmode);
                 EmbedBuilder.Author = new()
                 {
                     Name = response.username + " - " + mode.ToString(),
@@ -100,7 +100,7 @@ namespace RhythmGamer
             }
         }
         [SlashCommand("top", "Get the top plays from a user")]
-        public async Task Top([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuData.GameMode? mode = null)
+        public async Task Top([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuStructures.GameMode? mode = null)
         {
             try
             {
@@ -140,14 +140,14 @@ namespace RhythmGamer
                 //     return;
                 // }
                 if (mode == null)
-                    mode = (osuData.GameMode)Enum.Parse(typeof(osuData.GameMode), response.playmode);
+                    mode = (osuStructures.GameMode)Enum.Parse(typeof(osuStructures.GameMode), response.playmode);
                 EmbedBuilder.Author = new()
                 {
                     Name = response.username + " - " + mode.ToString() + " top plays",
                     IconUrl = $"https://osu.ppy.sh/images/flags/{response.country_code}.png"
                 };
-                osuData.osuScore currScore = response2[0];
-                osuData.osuBeatmap currMap = new();
+                osuStructures.osuScore currScore = response2[0];
+                osuStructures.osuBeatmap currMap = new();
                 string mods = "";
                 for (int i = 0; i < 5; i++)
                 {
@@ -186,7 +186,7 @@ namespace RhythmGamer
             }
         }
         [SlashCommand("map", "Get a beatmap")]
-        public async Task Map([Summary("Name", "Name of the map to lookup")] string? name = null, [Summary("Url", "The url of the map")] string? url = null, [Summary("GameMode", "The gamemode to lookup")] osuData.GameMode? mode = null)
+        public async Task Map([Summary("Name", "Name of the map to lookup")] string? name = null, [Summary("Url", "The url of the map")] string? url = null, [Summary("GameMode", "The gamemode to lookup")] osuStructures.GameMode? mode = null)
         {
             try
             {
@@ -296,7 +296,7 @@ namespace RhythmGamer
             }
         }
         [SlashCommand("recent", "Get a users recent plays within 24 hours")]
-        public async Task Recent([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuData.GameMode? mode = null)
+        public async Task Recent([Summary("Username", "The user to lookup")] string? user = null, [Summary("GameMode", "The gamemode to lookup")] osuStructures.GameMode? mode = null)
         {
             try
             {
@@ -389,7 +389,7 @@ namespace RhythmGamer
                     await RespondAsync(embed: EmbedBuilder.Build());
                     return;
                 }
-                osuData.osuScores response = await osuInternal.GetBeatmapUserScores(mapR.id, userR.id);
+                osuStructures.osuScores response = await osuInternal.GetBeatmapUserScores(mapR.id, userR.id);
                 if (response.scores.Count() == 0)
                 {
                     EmbedBuilder.Title = "No scores found for user";
@@ -464,91 +464,91 @@ namespace RhythmGamer
                 client.DefaultRequestHeaders.Add("Authorization", "Bearer " + cc.access_token);
             }
         }
-        public static async Task<osuData.osuBeatmapset> GetBeatmapset(int id)
+        public static async Task<osuStructures.osuBeatmapset> GetBeatmapset(int id)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/{id}");
             // File.WriteAllText("GetBeatmapset", $"// {baseUrl}/beatmapsets/{id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuBeatmapset>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            var content = JsonConvert.DeserializeObject<osuStructures.osuBeatmapset>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuBeatmapsets> GetBeatmapsets(string search)
+        public static async Task<osuStructures.osuBeatmapsets> GetBeatmapsets(string search)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmapsets/search?q={search}");
             // File.WriteAllText("GetBeatmapsets", $"// {baseUrl}/beatmapsets/search?q={search}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuBeatmapsets>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            var content = JsonConvert.DeserializeObject<osuStructures.osuBeatmapsets>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuBeatmap> GetBeatmap(ulong id)
+        public static async Task<osuStructures.osuBeatmap> GetBeatmap(ulong id)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/lookup?id={id}");
             // File.WriteAllText("GetBeatmap", $"// {baseUrl}/beatmaps/lookup?id={id}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuBeatmap>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            var content = JsonConvert.DeserializeObject<osuStructures.osuBeatmap>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScores> GetBeatmapScores(int id)
+        public static async Task<osuStructures.osuScores> GetBeatmapScores(int id)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{id}/scores");
             // File.WriteAllText("GetBeatmapScores", $"// {baseUrl}/beatmaps/{id}/scores" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            var content = JsonConvert.DeserializeObject<osuStructures.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScores> GetBeatmapUserScores(ulong mapId, ulong userId)
+        public static async Task<osuStructures.osuScores> GetBeatmapUserScores(ulong mapId, ulong userId)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all");
             // File.WriteAllText("GetBeatmapUserScores", $"// {baseUrl}/beatmaps/{mapId}/scores/users/{userId}/all" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            var content = JsonConvert.DeserializeObject<osuStructures.osuScores>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuUser> GetUser(int id, string? mode)
+        public static async Task<osuStructures.osuUser> GetUser(int id, string? mode)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/{mode ?? ""}");
             // File.WriteAllText("GetUserId", $"// {baseUrl}/users/{id}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            var content = JsonConvert.DeserializeObject<osuStructures.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuUser> GetUser(string username, string? mode)
+        public static async Task<osuStructures.osuUser> GetUser(string username, string? mode)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{username}/{mode ?? ""}");
             // File.WriteAllText("GetUserString", $"// {baseUrl}/users/{username}/{mode ?? ""}" + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
+            var content = JsonConvert.DeserializeObject<osuStructures.osuUser>(await responseMessage.Content.ReadAsStringAsync()) ?? new();
             content.http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScore[]> GetUserTop(ulong id, string? mode)
+        public static async Task<osuStructures.osuScore[]> GetUserTop(ulong id, string? mode)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}"));
             // File.WriteAllText("GetUserTop", $"// {baseUrl}/users/{id}/scores/best" + (string.IsNullOrEmpty(mode) ? "" : $"?q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuData.osuScore[1];
+            var content = JsonConvert.DeserializeObject<osuStructures.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuStructures.osuScore[1];
             content[0].http_code = (int)responseMessage.StatusCode;
             return content;
         }
-        public static async Task<osuData.osuScore[]> GetUserRecent(ulong id, string? mode)
+        public static async Task<osuStructures.osuScore[]> GetUserRecent(ulong id, string? mode)
         {
             await Authorize();
             var responseMessage = await client.GetAsync($"{baseUrl}/users/{id}/scores/recent?include_fails=1" + (string.IsNullOrEmpty(mode) ? "" : $"&q={mode}"));
             // File.WriteAllText("GetUserRecent", $"// {baseUrl}/users/{id}/scores/recent?include_fails=1" + (string.IsNullOrEmpty(mode) ? "" : $"$q={mode}") + "\n\n" + await responseMessage.Content.ReadAsStringAsync());
-            var content = JsonConvert.DeserializeObject<osuData.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuData.osuScore[1];
+            var content = JsonConvert.DeserializeObject<osuStructures.osuScore[]>(await responseMessage.Content.ReadAsStringAsync()) ?? new osuStructures.osuScore[1];
             // if (content.Length == 0)
             //     content = new osuData.osuScore[1];
             // content[0].http_code = (int)responseMessage.StatusCode;
             return content;
         }
     }
-    public class osuData
+    public class osuStructures
     {
         public class osuBeatmap
         {
