@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Globalization;
 using Discord;
 using Discord.Interactions;
@@ -10,6 +11,116 @@ namespace RhythmGamer
     [Group("quaver", "Quaver related commands")]
     public class QuaverModule : InteractionModuleBase<SocketInteractionContext>
     {
+        private double RatingAtAcc(double acc, double diff)
+        {
+            return diff * Math.Pow(acc / 98, 6);
+        }
+        private EmbedBuilder GenerateEmbed(QuaverStructures.Map map)
+        {
+            var embed = Program.DefaultEmbed()
+                .WithTitle($"{map.title} [{map.difficultyName}] {(map.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}")
+                .WithUrl($"https://quavergame.com/mapsets/map/{map.id}")
+                .WithImageUrl($"https://cdn.quavergame.com/mapsets/{map.mapsetId}.jpg")
+                .WithDescription($"[Download](https://quavergame.com/download/mapset/{map.mapsetId})")
+                .AddField($"Rating: {map.difficultyRating.ToString("N2")}",
+                $"**BPM**: {map.bpm.ToString("N2")}\n" +
+                $"**Length**: {DateTimeOffset.FromUnixTimeMilliseconds(map.length).ToString("mm:ss")}\n" +
+                $"**Max Combo**: {map.countNotes + map.countLongNotes * 2}\n" +
+                $"**P-Rating**: 100%: {RatingAtAcc(100, map.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, map.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, map.difficultyRating).ToString("N2")}");
+
+            return embed;
+        }
+        private EmbedBuilder GenerateEmbed(QuaverStructures.Map[] maps)
+        {
+            var embed = Program.DefaultEmbed()
+                .WithTitle($"Maps")
+                .WithDescription($"{maps.Length} maps");
+
+            foreach (var map in maps)
+            {
+                embed.AddField($"{map.title} [{map.difficultyName}] {(map.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}",
+                    $"**Rating**: {map.difficultyRating.ToString("N2")}\n" +
+                    $"**BPM**: {map.bpm.ToString("N2")}\n" +
+                    $"**Length**: {DateTimeOffset.FromUnixTimeMilliseconds(map.length).ToString("mm:ss")}\n" +
+                    $"**Max Combo**: {map.countNotes + map.countLongNotes * 2}\n" +
+                    $"**P-Rating**: 100%: {RatingAtAcc(100, map.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, map.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, map.difficultyRating).ToString("N2")}");
+            }
+
+            return embed;
+        }
+        private EmbedBuilder GenerateEmbed(QuaverStructures.Mapset mapset)
+        {
+            var embed = Program.DefaultEmbed()
+                .WithTitle($"{mapset.title}")
+                .WithUrl($"https://quavergame.com/mapsets/{mapset.id}")
+                .WithThumbnailUrl($"https://cdn.quavergame.com/mapsets/{mapset.id}.jpg")
+                .WithDescription($"[Download](https://quavergame.com/download/mapset/{mapset.id})");
+
+            // mapset.maps.ToList().Sort((x, y) => x.difficultyRating.CompareTo(y.difficultyRating));
+
+            foreach (var diff in mapset.maps)
+            {
+                embed.AddField($"{diff.difficultyName} {(diff.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}",
+                $"**Rating**: {diff.difficultyRating.ToString("N2")}\n" +
+                $"**BPM**: {diff.bpm.ToString("N2")}\n" +
+                $"**Length**: {DateTimeOffset.FromUnixTimeMilliseconds(diff.length).ToString("mm:ss")}\n" +
+                $"**Max Combo**: {diff.countNotes + diff.countLongNotes * 2}\n" +
+                $"**P-Rating**: 100%: {RatingAtAcc(100, diff.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, diff.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, diff.difficultyRating).ToString("N2")}");
+            }
+
+            return embed;
+        }
+        private EmbedBuilder GenerateEmbed(QuaverStructures.UserScore score)
+        {
+            var embed = Program.DefaultEmbed()
+                .WithTitle($"{score.map.title} [{score.map.difficultyName}]")
+                .WithUrl($"https://quavergame.com/mapsets/map/{score.map.id}")
+                .WithImageUrl($"https://cdn.quavergame.com/mapsets/{score.map.mapsetId}.jpg")
+                .WithDescription(
+                    $"[Map](https://quavergame.com/download/mapset/{score.map.mapsetId})\n" +
+                    $"[Replay](https://quavergame.com/download/replay/{score.id})")
+                .AddField($"P-Rating: {score.performanceRating.ToString("N2")}",
+                $"**Score**: {score.totalScore.ToString("N0")}\n" +
+                $"**Accuracy**: {score.accuracy.ToString("N2")}%\n" +
+                $"**Combo**: {score.maxCombo.ToString("N0")}\n" +
+                $"**Mods**: {score.mods}\n" +
+                $"**Judge**: [MA:**{score.countMarvelous.ToString("N0")}**/PF:**{score.countPerfect.ToString("N0")}**/GR:**{score.countGreat.ToString("N0")}**/GO:**{score.countGood.ToString("N0")}**/BA:**{score.countOkay.ToString("N0")}**/MI:**{score.countMiss.ToString("N0")}**]");
+
+            return embed;
+        }
+        private EmbedBuilder GenerateEmbed(QuaverStructures.UserScore[] scores)
+        {
+            var embed = Program.DefaultEmbed()
+                .WithTitle($"Scores")
+                .WithDescription($"{scores.Length} scores");
+
+            foreach (var score in scores.Take(25))
+            {
+                embed.AddField($"{score.map.title} [{score.map.difficultyName}]",
+                    $"**Score**: {score.totalScore.ToString("N0")}\n" +
+                    $"**Accuracy**: {score.accuracy.ToString("N2")}%\n" +
+                    $"**Combo**: {score.maxCombo.ToString("N0")}\n" +
+                    $"**Mods**: {score.modsString}\n" +
+                    $"**P-Rating**: {score.performanceRating.ToString("N2")}\n" +
+                    $"**Judge**: [MA:**{score.countMarvelous.ToString("N0")}**/PF:**{score.countPerfect.ToString("N0")}**/GR:**{score.countGreat.ToString("N0")}**/GO:**{score.countGood.ToString("N0")}**/BA:**{score.countOkay.ToString("N0")}**/MI:**{score.countMiss.ToString("N0")}**]");
+            }
+
+            return embed;
+        }
+        private EmbedBuilder GenerateEmbed(QuaverStructures.User user, QuaverStructures.GameMode mode)
+        {
+            var embed = Program.DefaultEmbed()
+                .WithAuthor($"{user.userInfo.username}", $"https://static.quavergame.com/img/flags/{user.userInfo.country}.png")
+                .WithUrl($"https://quavergame.com/user/{user.userInfo.id}")
+                .WithThumbnailUrl(user.userInfo.avatarUrl)
+                .WithDescription(
+                    $"**Rank**: #{(mode == QuaverStructures.GameMode.Key4 ? user.keys4.globalRank : user.keys7.globalRank)} ({user.userInfo.country}#{(mode == QuaverStructures.GameMode.Key4 ? user.keys4.countryRank : user.keys7.countryRank)})\n" +
+                    $"**Overall Rating**: {(mode == QuaverStructures.GameMode.Key4 ? user.keys4.stats.overallPerformanceRating.ToString("N2") : user.keys7.stats.overallPerformanceRating.ToString("N2"))} " +
+                    $"**Accuracy**: {(mode == QuaverStructures.GameMode.Key4 ? user.keys4.stats.overallAccuracy.ToString("N2") : user.keys7.stats.overallAccuracy.ToString("N2"))}%\n" +
+                    $"**Play Count**: {(mode == QuaverStructures.GameMode.Key4 ? user.keys4.stats.playCount.ToString("N0") : user.keys7.stats.playCount.ToString("N0"))}\n");
+
+            return embed;
+        }
         [SlashCommand("setuser", "Set your default Quaver user")]
         public async Task SetUser([Summary("Username")] string username, [Summary("Gamemode")] QuaverStructures.GameMode mode = QuaverStructures.GameMode.Key4)
         {
@@ -21,24 +132,11 @@ namespace RhythmGamer
                     await RespondAsync("User not found");
                     return;
                 }
-                if (Program.UserConfigs.Exists(x => x.id == Context.User.Id))
-                {
-                    Program.UserConfigs.Find(x => x.id == Context.User.Id)!.quaver.username = user.userInfo.username;
-                    Program.UserConfigs.Find(x => x.id == Context.User.Id)!.quaver.mode = mode;
-                }
-                else
-                {
-                    UserConfig userc = new()
-                    {
-                        id = Context.User.Id,
-                        quaver = new()
-                        {
-                            username = user.userInfo.username,
-                            mode = mode
-                        }
-                    };
-                    Program.UserConfigs.Add(userc);
-                }
+                var uc = Program.GetUserConfig(Context.User.Id);
+                uc.quaver.username = user.userInfo.username;
+                uc.quaver.mode = mode;
+                Program.SetUserConfig(Context.User.Id, uc);
+
                 var embed = Program.DefaultEmbed()
                     .WithAuthor(user.userInfo.username, $"https://static.quavergame.com/img/flags/{user.userInfo.country}.png")
                     .WithDescription($"Set your default Quaver user to **{user.userInfo.username}**")
@@ -83,17 +181,10 @@ namespace RhythmGamer
                 if (mode == null)
                     mode = QuaverStructures.GameMode.Key4;
                 var userMode = mode == QuaverStructures.GameMode.Key4 ? user.keys4 : user.keys7;
-                var embed = Program.DefaultEmbed()
-                    .WithAuthor(user.userInfo.username, $"https://static.quavergame.com/img/flags/{user.userInfo.country}.png")
-                    .WithDescription($"[Profile](https://quavergame.com/user/{user.userInfo.id})")
-                    .WithColor(Color.Blue)
-                    .WithThumbnailUrl(user.userInfo.avatarUrl)
-                    .AddField("Rank", $"**Global**\t#{userMode.globalRank.ToString("N0")}\n**Country**\t#{userMode.countryRank.ToString("N0")} {user.userInfo.country}", true)
-                    .AddField("Stats", $"**Rating**\t{userMode.stats.overallPerformanceRating.ToString("N2")}\n**Accuracy**\t{userMode.stats.overallAccuracy.ToString("N2")}%\n**Max Combo**\t{userMode.stats.maxCombo.ToString("N0")}", true)
-                    .AddField("Score", $"**Total**\t{userMode.stats.totalScore.ToString("N0")}\n**Ranked**\t{userMode.stats.rankedScore.ToString("N0")}\n**Play Count**\t{userMode.stats.playCount.ToString("N0")}", true)
-                    .AddField("Multiplayer", $"**Wins**\t{userMode.stats.multiplayerWins.ToString("N0")}\n**Losses**\t{userMode.stats.multiplayerLoses.ToString("N0")}\n**Wins Rank**\t#{userMode.multiplayerWinRank.ToString("N0")}", true)
-                    .Build();
-                await RespondAsync(embed: embed);
+
+                var embed = GenerateEmbed(user, mode.Value);
+
+                await RespondAsync(embed: embed.Build());
             }
             catch (Exception ex)
             {
@@ -137,18 +228,12 @@ namespace RhythmGamer
                     return;
                 }
                 var score = scores.First();
-                var embed = Program.DefaultEmbed()
-                    .WithAuthor($"{score.map.title} [{score.map.difficultyName}]", user.userInfo.avatarUrl)
-                    .WithDescription($"[Map](https://quavergame.com/mapsets/map/{score.map.id})")
-                    .WithColor(Color.Blue)
-                    .WithThumbnailUrl($"https://cdn.quavergame.com/mapsets/{score.map.id}.jpg")
-                    .AddField("Score", $"**Score**\t{score.totalScore.ToString("N0")}\n**Accuracy**\t{score.accuracy.ToString("N2")}%\n**Max Combo**\t{score.maxCombo.ToString("N0")}\n**P-Rating**\t{score.performanceRating.ToString("N2")}", true)
-                    .AddField("Stats", $"**Mods**\t{score.modsString}\n**Scroll Sp.**\t{(score.scrollSpeed / 10).ToString("N1")}\n**Grade**\t{score.grade}", true)
-                    .AddField("Judgements", $"**Marv**\t{score.countMarvelous.ToString("N0")}\n**Perf**\t{score.countPerfect.ToString("N0")}\n**Great**\t{score.countGreat.ToString("N0")}\n**Good**\t{score.countGood.ToString("N0")}\n**Okay**\t{score.countOkay.ToString("N0")}\n**Miss**\t{score.countMiss.ToString("N0")}", true)
-                    .Build();
+
+                var embed = GenerateEmbed(score);
+
                 if (Context.Interaction.ChannelId.HasValue)
                     QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, score.map.id);
-                await RespondAsync(embed: embed);
+                await RespondAsync(embed: embed.Build());
             }
             catch (Exception ex)
             {
@@ -185,29 +270,19 @@ namespace RhythmGamer
                 }
                 if (mode == null)
                     mode = QuaverStructures.GameMode.Key4;
-                var scores = (await QuaverInternal.Api.GetUserScoresAsync(QuaverInternal.Api.UserScoreType.best, user.userInfo.id, mode.Value, page)).scores;
+                var scores = (await QuaverInternal.Api.GetUserScoresAsync(QuaverInternal.Api.UserScoreType.best, user.userInfo.id, mode.Value, 5, page)).scores;
                 if (scores.Count() == 0)
                 {
                     await RespondAsync("No plays found");
                     return;
                 }
-                Embed[] embeds = new Embed[5];
-                for (int i = 0; i < Math.Min(scores.Count(), 5); i++)
-                {
-                    var score = scores[i];
-                    embeds[i] = Program.DefaultEmbed()
-                    .WithAuthor($"{score.map.title} [{score.map.difficultyName}]", user.userInfo.avatarUrl)
-                    .WithDescription($"[Map](https://quavergame.com/mapsets/map/{score.map.id})")
-                    .WithColor(Color.Blue)
-                    .WithThumbnailUrl($"https://cdn.quavergame.com/mapsets/{score.map.id}.jpg")
-                    .AddField("Score", $"**Score**\t{score.totalScore.ToString("N0")}\n**Accuracy**\t{score.accuracy.ToString("N2")}%\n**Max Combo**\t{score.maxCombo.ToString("N0")}\n**P-Rating**\t{score.performanceRating.ToString("N2")}", true)
-                    .AddField("Stats", $"**Mods**\t{score.modsString}\n**Scroll Sp.**\t{(score.scrollSpeed / 10).ToString("N1")}\n**Grade**\t{score.grade}", true)
-                    .AddField("Judgements", $"**Marv**\t{score.countMarvelous.ToString("N0")}\n**Perf**\t{score.countPerfect.ToString("N0")}\n**Great**\t{score.countGreat.ToString("N0")}\n**Good**\t{score.countGood.ToString("N0")}\n**Okay**\t{score.countOkay.ToString("N0")}\n**Miss**\t{score.countMiss.ToString("N0")}", true)
-                    .Build();
-                }
+
+                var embed = GenerateEmbed(scores);
+                embed.WithTitle($"{user.userInfo.username}'s top plays").WithDescription($"Page {page + 1}");
+
                 if (Context.Interaction.ChannelId.HasValue)
                     QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, scores.First().map.id);
-                await RespondAsync(embeds: embeds);
+                await RespondAsync(embed: embed.Build());
             }
             catch (Exception ex)
             {
@@ -236,19 +311,12 @@ namespace RhythmGamer
                     await RespondAsync("Map not found");
                     return;
                 }
-                var creator = (await QuaverInternal.Api.GetUserAsync(map.creatorUsername)).user;
-                var embed = Program.DefaultEmbed()
-                    .WithTitle($"{map.title} [{map.difficultyName}]")
-                    .WithUrl($"https://quavergame.com/mapsets/map/{map.id}")
-                    .WithColor(Color.Blue)
-                    .WithImageUrl($"https://cdn.quavergame.com/mapsets/{map.mapsetId}.jpg")
-                    .WithAuthor(creator.userInfo.username, creator.userInfo.avatarUrl, "https://quavergame.com/user/" + creator.userInfo.id)
-                    .AddField("Stats", $"**BPM**\t{map.bpm.ToString("N0")}\n**Length**\t{DateTimeOffset.FromUnixTimeMilliseconds(map.length).ToString("mm:ss")}", true)
-                    .AddField("Stats", $"**Max Combo**\t{(map.countNotes + map.countLongNotes * 2).ToString("N0")}\n**Status**\t{map.rankedStatus}\n**Mode**\t{map.gameMode.ToString()}", true)
-                    .Build();
+
+                var embed = GenerateEmbed(map);
+
                 if (Context.Interaction.ChannelId.HasValue)
                     QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, map.id);
-                await RespondAsync(embed: embed);
+                await RespondAsync(embed: embed.Build());
             }
             catch (Exception ex)
             {
@@ -270,7 +338,8 @@ namespace RhythmGamer
                             await RespondAsync("No id/Search specified and no mapset found in chat");
                             return;
                         }
-                        mapsetId = QuaverInternal.GetLastMapId(Context.Channel.Id, Context.Guild.Id);
+                        if (Context.Interaction.ChannelId.HasValue)
+                            mapsetId = QuaverInternal.GetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id);
                     }
                     else
                     {
@@ -294,8 +363,12 @@ namespace RhythmGamer
                     await RespondAsync("Mapset not found");
                     return;
                 }
+
+                var embed = GenerateEmbed(mapset);
+
                 if (Context.Interaction.ChannelId.HasValue)
                     QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, mapset.maps.First().id);
+                await RespondAsync(embed: embed.Build());
             }
             catch (Exception ex)
             {

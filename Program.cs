@@ -31,7 +31,7 @@ namespace RhythmGamer
     public class Program
     {
         public static Task Main(string[] args) => new Program().MainAsync();
-        public static string version = "0.2";
+        public static string version = "0.3";
         public static Discord.WebSocket.DiscordSocketClient? _client;
         public static Discord.WebSocket.DiscordSocketConfig config = new Discord.WebSocket.DiscordSocketConfig();
         public static GlobalConfig Config = new GlobalConfig();
@@ -310,12 +310,21 @@ namespace RhythmGamer
             foreach (var user in UserConfigs)
             {
                 if (user.id == id)
-                {
-                    l.Debug($"Found user {id} in config", "GetUserConfig");
                     return user;
-                }
             }
             return new UserConfig();
+        }
+        public static void SetUserConfig(ulong id, UserConfig uc)
+        {
+            for (var i = 0; i < UserConfigs.Count; i++)
+            {
+                if (UserConfigs[i].id == id)
+                {
+                    UserConfigs[i] = uc;
+                    return;
+                }
+            }
+            UserConfigs.Add(uc);
         }
     }
 
