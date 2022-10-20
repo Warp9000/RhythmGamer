@@ -23,7 +23,7 @@ namespace RhythmGamer
                 .WithImageUrl($"https://cdn.quavergame.com/mapsets/{map.mapsetId}.jpg")
                 .WithDescription($"[Download](https://quavergame.com/download/mapset/{map.mapsetId})")
                 .AddField($"Rating: {map.difficultyRating.ToString("N2")}",
-                $"**BPM**: {map.bpm.ToString("N2")}\n" +
+                $"**BPM**: {map.bpm}\n" +
                 $"**Length**: {DateTimeOffset.FromUnixTimeMilliseconds(map.length).ToString("mm:ss")}\n" +
                 $"**Max Combo**: {map.countNotes + map.countLongNotes * 2}\n" +
                 $"**P-Rating**: 100%: {RatingAtAcc(100, map.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, map.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, map.difficultyRating).ToString("N2")}");
@@ -40,7 +40,7 @@ namespace RhythmGamer
             {
                 embed.AddField($"{map.title} [{map.difficultyName}] {(map.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}",
                     $"**Rating**: {map.difficultyRating.ToString("N2")}\n" +
-                    $"**BPM**: {map.bpm.ToString("N2")}\n" +
+                    $"**BPM**: {map.bpm}\n" +
                     $"**Length**: {DateTimeOffset.FromUnixTimeMilliseconds(map.length).ToString("mm:ss")}\n" +
                     $"**Max Combo**: {map.countNotes + map.countLongNotes * 2}\n" +
                     $"**P-Rating**: 100%: {RatingAtAcc(100, map.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, map.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, map.difficultyRating).ToString("N2")}");
@@ -57,16 +57,23 @@ namespace RhythmGamer
                 .WithDescription($"[Download](https://quavergame.com/download/mapset/{mapset.id})");
 
             // mapset.maps.ToList().Sort((x, y) => x.difficultyRating.CompareTo(y.difficultyRating));
-
-            foreach (var diff in mapset.maps)
-            {
-                embed.AddField($"{diff.difficultyName} {(diff.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}",
-                $"**Rating**: {diff.difficultyRating.ToString("N2")}\n" +
-                $"**BPM**: {diff.bpm.ToString("N2")}\n" +
-                $"**Length**: {DateTimeOffset.FromUnixTimeMilliseconds(diff.length).ToString("mm:ss")}\n" +
-                $"**Max Combo**: {diff.countNotes + diff.countLongNotes * 2}\n" +
-                $"**P-Rating**: 100%: {RatingAtAcc(100, diff.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, diff.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, diff.difficultyRating).ToString("N2")}");
-            }
+            if (mapset.maps.Count() <= 3)
+                foreach (var diff in mapset.maps)
+                {
+                    embed.AddField($"{diff.difficultyName} {(diff.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}",
+                    $"**Rating**: {diff.difficultyRating.ToString("N2")}\n" +
+                    $"**BPM**: {diff.bpm}\n" +
+                    $"**Length**: {DateTimeOffset.FromUnixTimeMilliseconds(diff.length).ToString("mm:ss")}\n" +
+                    $"**Max Combo**: {diff.countNotes + diff.countLongNotes * 2}\n" +
+                    $"**P-Rating**: 100%: {RatingAtAcc(100, diff.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, diff.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, diff.difficultyRating).ToString("N2")}");
+                }
+            else
+                foreach (var diff in mapset.maps)
+                {
+                    embed.AddField($"{diff.difficultyName} {(diff.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}",
+                    $"**Rating**: {diff.difficultyRating.ToString("N2")}\n" +
+                    $"**P-Rating**: 100%: {RatingAtAcc(100, diff.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, diff.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, diff.difficultyRating).ToString("N2")}");
+                }
 
             return embed;
         }
@@ -363,6 +370,8 @@ namespace RhythmGamer
                     await RespondAsync("Mapset not found");
                     return;
                 }
+
+                mapset.maps = mapset.maps.OrderByDescending(m => m.difficultyRating).ToArray();
 
                 var embed = GenerateEmbed(mapset);
 
