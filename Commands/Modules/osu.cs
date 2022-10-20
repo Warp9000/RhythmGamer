@@ -152,9 +152,9 @@ namespace RhythmGamer
                 for (int i = 0; i < 5; i++)
                 {
                     currScore = response2[i];
-                    currMap = await osuInternal.GetBeatmap(currScore.beatmap.id);
+                    currMap = await osuInternal.GetBeatmap(currScore.beatmap!.id);
                     mods = "";
-                    foreach (var mod in currScore.mods)
+                    foreach (var mod in currScore.mods!)
                     {
                         mods += mod;
                     }
@@ -162,14 +162,14 @@ namespace RhythmGamer
                     {
                         case "mania":
                             EmbedBuilder.Description +=
-                                $"**{i + 1}. [{currScore.beatmapset.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
+                                $"**{i + 1}. [{currScore.beatmapset!.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
                                 $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp ?? -1, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
                                 $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_geki}/{currScore.statistics.count_300}/{currScore.statistics.count_katu}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
                                 $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n";
                             break;
                         default:
                             EmbedBuilder.Description +=
-                                $"**{i + 1}. [{currScore.beatmapset.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
+                                $"**{i + 1}. [{currScore.beatmapset!.title}]({currScore.beatmap.url}) +{(string.IsNullOrEmpty(mods) ? "No Mod" : mods.ToUpper())}** [{currScore.beatmap.difficulty_rating}★]\n" +
                                 $"`{currScore.rank.ToUpper()}` | **{Math.Round(currScore.pp ?? -1, 2)}pp** | {Math.Round(currScore.accuracy * 100, 2)}%\n" +
                                 $"`{currScore.score}` | x{currScore.max_combo}/{currMap.max_combo} | [{currScore.statistics.count_300}/{currScore.statistics.count_100}/{currScore.statistics.count_50}/{currScore.statistics.count_miss}]\n" +
                                 $"Score set <t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:R> (<t:{((DateTimeOffset)currScore.created_at).ToUnixTimeSeconds()}:f>)\n";
@@ -196,7 +196,7 @@ namespace RhythmGamer
                     ulong mapId = 0;
                     if (url == null)
                     {
-                        var a = Program.ServerConfigs.Find(x => x.id == Context.Guild.Id).osu.lastMapChannel;
+                        var a = Program.GetServerConfig(Context.Guild.Id).osu.lastMapChannel;
                         foreach (var item in a)
                         {
                             if (item.Key == Context.Channel.Id)
@@ -216,7 +216,6 @@ namespace RhythmGamer
                     }
                     else
                     {
-                        // https://osu.ppy.sh/beatmapsets/919633#mania/1920615
                         if (url.StartsWith("https://osu.ppy.sh/beatmapsets/"))
                         {
                             var s = url.TrimEnd('/').Split('/');
@@ -280,7 +279,7 @@ namespace RhythmGamer
                     return;
                 }
                 var mapset = response2.beatmapsets![0];
-                EmbedBuilder.WithTitle(mapset.title).WithUrl(mapset.beatmaps[0].url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{mapset.id}l.jpg");
+                EmbedBuilder.WithTitle(mapset.title).WithUrl(mapset.beatmaps![0].url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{mapset.id}l.jpg");
                 foreach (var item in mapset.beatmaps)
                 {
                     EmbedBuilder.AddField($"**{item.version}**",
@@ -335,8 +334,8 @@ namespace RhythmGamer
                     await RespondAsync(embed: EmbedBuilder.Build());
                     return;
                 }
-                var map = await osuInternal.GetBeatmap(response[0].beatmap.id);
-                EmbedBuilder.WithTitle(response[0].beatmapset.title).WithUrl(response[0].beatmap.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{response[0].beatmapset.id}l.jpg")
+                var map = await osuInternal.GetBeatmap(response[0].beatmap!.id);
+                EmbedBuilder.WithTitle(response[0].beatmapset!.title).WithUrl(response[0].beatmap!.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{response[0].beatmapset!.id}l.jpg")
                 .WithDescription(
                     $"`{response[0].rank.ToUpper()}` | **{response[0].pp ?? -1} PP** | {Math.Round(response[0].accuracy * 100, 2)}%\n" +
                     $"{response[0].score} | x{response[0].max_combo}/{map.max_combo}"
@@ -390,7 +389,7 @@ namespace RhythmGamer
                     return;
                 }
                 osuStructures.osuScores response = await osuInternal.GetBeatmapUserScores(mapR.id, userR.id);
-                if (response.scores.Count() == 0)
+                if (response.scores!.Count() == 0)
                 {
                     EmbedBuilder.Title = "No scores found for user";
                     EmbedBuilder.Description = @"¯\_(ツ)_/¯";
@@ -406,9 +405,9 @@ namespace RhythmGamer
                     await RespondAsync(embed: EmbedBuilder.Build());
                     return;
                 }
-                response.scores.Sort((x, y) => (y.pp ?? -1).CompareTo((x.pp ?? -1)));
+                response.scores!.Sort((x, y) => (y.pp ?? -1).CompareTo((x.pp ?? -1)));
                 var score = response.scores[0];
-                EmbedBuilder.WithTitle(mapR.beatmapset.title).WithUrl(mapR.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{mapR.beatmapset.id}l.jpg")
+                EmbedBuilder.WithTitle(mapR.beatmapset!.title).WithUrl(mapR.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{mapR.beatmapset.id}l.jpg")
                 .WithDescription(
                     $"`{score.rank.ToUpper()}` | **{score.pp ?? -1} PP** | {Math.Round(score.accuracy * 100, 2)}%\n" +
                     $"{score.score} | x{score.max_combo}/{mapR.max_combo}"

@@ -146,6 +146,8 @@ namespace RhythmGamer
                     .AddField("Stats", $"**Mods**\t{score.modsString}\n**Scroll Sp.**\t{(score.scrollSpeed / 10).ToString("N1")}\n**Grade**\t{score.grade}", true)
                     .AddField("Judgements", $"**Marv**\t{score.countMarvelous.ToString("N0")}\n**Perf**\t{score.countPerfect.ToString("N0")}\n**Great**\t{score.countGreat.ToString("N0")}\n**Good**\t{score.countGood.ToString("N0")}\n**Okay**\t{score.countOkay.ToString("N0")}\n**Miss**\t{score.countMiss.ToString("N0")}", true)
                     .Build();
+                if (Context.Interaction.ChannelId.HasValue)
+                    QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, score.map.id);
                 await RespondAsync(embed: embed);
             }
             catch (Exception ex)
@@ -203,6 +205,8 @@ namespace RhythmGamer
                     .AddField("Judgements", $"**Marv**\t{score.countMarvelous.ToString("N0")}\n**Perf**\t{score.countPerfect.ToString("N0")}\n**Great**\t{score.countGreat.ToString("N0")}\n**Good**\t{score.countGood.ToString("N0")}\n**Okay**\t{score.countOkay.ToString("N0")}\n**Miss**\t{score.countMiss.ToString("N0")}", true)
                     .Build();
                 }
+                if (Context.Interaction.ChannelId.HasValue)
+                    QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, scores.First().map.id);
                 await RespondAsync(embeds: embeds);
             }
             catch (Exception ex)
@@ -219,8 +223,32 @@ namespace RhythmGamer
             {
                 if (mapId == null)
                 {
-                    // find map in chat
+                    mapId = QuaverInternal.GetLastMapId(Context.Interaction.ChannelId ?? 0, Context.Guild.Id);
+                    if (mapId == -1)
+                    {
+                        await RespondAsync("No map provided and no map found in this channel");
+                        return;
+                    }
                 }
+                var map = (await QuaverInternal.Api.GetMapAsync(mapId.Value)).map;
+                if (map == null)
+                {
+                    await RespondAsync("Map not found");
+                    return;
+                }
+                var creator = (await QuaverInternal.Api.GetUserAsync(map.creatorUsername)).user;
+                var embed = Program.DefaultEmbed()
+                    .WithTitle($"{map.title} [{map.difficultyName}]")
+                    .WithUrl($"https://quavergame.com/mapsets/map/{map.id}")
+                    .WithColor(Color.Blue)
+                    .WithImageUrl($"https://cdn.quavergame.com/mapsets/{map.mapsetId}.jpg")
+                    .WithAuthor(creator.userInfo.username, creator.userInfo.avatarUrl, "https://quavergame.com/user/" + creator.userInfo.id)
+                    .AddField("Stats", $"**BPM**\t{map.bpm.ToString("N0")}\n**Length**\t{DateTimeOffset.FromUnixTimeMilliseconds(map.length).ToString("mm:ss")}", true)
+                    .AddField("Stats", $"**Max Combo**\t{(map.countNotes + map.countLongNotes * 2).ToString("N0")}\n**Status**\t{map.rankedStatus}\n**Mode**\t{map.gameMode.ToString()}", true)
+                    .Build();
+                if (Context.Interaction.ChannelId.HasValue)
+                    QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, map.id);
+                await RespondAsync(embed: embed);
             }
             catch (Exception ex)
             {
@@ -237,7 +265,7 @@ namespace RhythmGamer
                 {
                     if (search == null)
                     {
-                        if (QuaverInternal.GetLastMapId(Context.Channel.Id, Context.Guild.Id) == -1)
+                        if (QuaverInternal.GetLastMapId(Context.Interaction.ChannelId ?? 0, Context.Guild.Id) == -1)
                         {
                             await RespondAsync("No id/Search specified and no mapset found in chat");
                             return;
@@ -266,7 +294,8 @@ namespace RhythmGamer
                     await RespondAsync("Mapset not found");
                     return;
                 }
-                QuaverInternal.SetLastMapId(Context.Channel.Id, Context.Guild.Id, mapset.maps.First().id);
+                if (Context.Interaction.ChannelId.HasValue)
+                    QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, mapset.maps.First().id);
             }
             catch (Exception ex)
             {
@@ -328,10 +357,10 @@ namespace RhythmGamer
                 var response = await ApiCallAsync($"/mapsets/maps/search/?search={query}" + (filter == null ? "" : filter.ToString()));
                 return JsonConvert.DeserializeObject<QuaverStructures.SearchMapsets>(response)!;
             }
-            public static async Task<QuaverStructures.Map> GetMapAsync(int mapId)
+            public static async Task<QuaverStructures.FullMap> GetMapAsync(int mapId)
             {
                 var response = await ApiCallAsync($"/maps/{mapId}");
-                return JsonConvert.DeserializeObject<QuaverStructures.Map>(response)!;
+                return JsonConvert.DeserializeObject<QuaverStructures.FullMap>(response)!;
             }
             public static async Task<QuaverStructures.Scores> GetScoresAsync(int mapId, QuaverStructures.GameMode mode, int limit = 10)
             {
@@ -566,6 +595,13 @@ namespace RhythmGamer
             public string creatorUsername { get; set; } = null!;
             [JsonProperty("ranked_status")]
             public int rankedStatus { get; set; }
+        }
+        public class FullMap
+        {
+            [JsonProperty("status")]
+            public int status { get; set; }
+            [JsonProperty("map")]
+            public Map map { get; set; } = null!;
         }
         public class Map
         {

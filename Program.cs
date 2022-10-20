@@ -31,7 +31,7 @@ namespace RhythmGamer
     public class Program
     {
         public static Task Main(string[] args) => new Program().MainAsync();
-        public static string version = "0.0.1 Public Alpha";
+        public static string version = "0.2";
         public static Discord.WebSocket.DiscordSocketClient? _client;
         public static Discord.WebSocket.DiscordSocketConfig config = new Discord.WebSocket.DiscordSocketConfig();
         public static GlobalConfig Config = new GlobalConfig();
@@ -45,7 +45,9 @@ namespace RhythmGamer
         public async Task MainAsync()
         {
             Console.Title = "RhythmGamer " + version;
+#if WINDOWS
             Console.BufferHeight = 1000;
+#endif
             config = new Discord.WebSocket.DiscordSocketConfig
             {
                 AlwaysDownloadUsers = true,
@@ -322,10 +324,18 @@ namespace RhythmGamer
         public static void Log(LogMessage msg)
         {
             if (msg.Severity <= Program.config.LogLevel)
-                Console.WriteLine($"[{System.DateTime.Now.ToString()}] [{msg.Severity}] [{msg.Source}] {msg.Message} {msg.Exception}");
+            {
+                if (msg.Exception != null)
+                    Console.WriteLine($"[{System.DateTime.Now.ToString()}] [{msg.Severity}] [{msg.Source}] {msg.Message} {msg.Exception.Message}\n{msg.Exception.StackTrace}");
+                else
+                    Console.WriteLine($"[{System.DateTime.Now.ToString()}] [{msg.Severity}] [{msg.Source}] {msg.Message}");
+            }
             try
             {
-                File.AppendAllText("Logs/latest.log", $"[{System.DateTime.Now.ToString()}] [{msg.Severity}] [{msg.Source}] {msg.Message} {msg.Exception}\n");
+                if (msg.Exception != null)
+                    File.AppendAllText("Logs/latest.log", $"[{System.DateTime.Now.ToString()}] [{msg.Severity}] [{msg.Source}] {msg.Message} {msg.Exception.Message}\n{msg.Exception.StackTrace}\n");
+                else
+                    File.AppendAllText("Logs/latest.log", $"[{System.DateTime.Now.ToString()}] [{msg.Severity}] [{msg.Source}] {msg.Message}\n");
             }
             catch (Exception e)
             {

@@ -9,7 +9,7 @@ namespace RhythmGamer
     public class CommandHandler
     {
         public readonly Discord.WebSocket.DiscordSocketClient _client;
-        public static InteractionService _InteractionService;
+        public static InteractionService _InteractionService = null!;
 
         public CommandHandler(Discord.WebSocket.DiscordSocketClient client)
         {
