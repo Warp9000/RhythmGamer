@@ -31,7 +31,7 @@ namespace RhythmGamer
     public class Program
     {
         public static Task Main(string[] args) => new Program().MainAsync();
-        public static string version = "0.3";
+        public static string version = "0.3.1";
         public static Discord.WebSocket.DiscordSocketClient? _client;
         public static Discord.WebSocket.DiscordSocketConfig config = new Discord.WebSocket.DiscordSocketConfig();
         public static GlobalConfig Config = new GlobalConfig();

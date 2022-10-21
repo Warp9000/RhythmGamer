@@ -59,7 +59,7 @@ namespace RhythmGamer
             // mapset.maps.ToList().Sort((x, y) => x.difficultyRating.CompareTo(y.difficultyRating));
             foreach (var diff in mapset.maps)
             {
-                embed.AddField($"{diff.difficultyName} {(diff.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}",
+                embed.AddField($"[{(diff.gameMode == QuaverStructures.GameMode.Key4 ? "4K" : "7K")}] {diff.difficultyName}",
                 $"**Difficulty**: {diff.difficultyRating.ToString("N2")} | **Max Combo**: {diff.countNotes + diff.countLongNotes * 2}\n" +
                 $"**Performance**: 100%: {RatingAtAcc(100, diff.difficultyRating).ToString("N2")} | 99%: {RatingAtAcc(99, diff.difficultyRating).ToString("N2")} | 95%: {RatingAtAcc(95, diff.difficultyRating).ToString("N2")}");
             }
@@ -75,12 +75,9 @@ namespace RhythmGamer
                 .WithDescription(
                     $"[Map](https://quavergame.com/download/mapset/{score.map.mapsetId})\n" +
                     $"[Replay](https://quavergame.com/download/replay/{score.id})")
-                .AddField($"P-Rating: {score.performanceRating.ToString("N2")}",
-                $"**Score**: {score.totalScore.ToString("N0")}\n" +
-                $"**Accuracy**: {score.accuracy.ToString("N2")}%\n" +
-                $"**Combo**: {score.maxCombo.ToString("N0")}\n" +
-                $"**Mods**: {score.mods}\n" +
-                $"**Judge**: [MA:**{score.countMarvelous.ToString("N0")}**/PF:**{score.countPerfect.ToString("N0")}**/GR:**{score.countGreat.ToString("N0")}**/GO:**{score.countGood.ToString("N0")}**/BA:**{score.countOkay.ToString("N0")}**/MI:**{score.countMiss.ToString("N0")}**]");
+                .AddField($"Performance: {score.performanceRating.ToString("N2")} | **Accuracy**: {score.accuracy.ToString("N2")}%",
+                $"**Score**: {score.totalScore.ToString("N0")} | **Combo**: {score.maxCombo.ToString("N0")}\n" +
+                $"**Mods**: {score.mods} | **Judge**: [MA:**{score.countMarvelous.ToString("N0")}**/PF:**{score.countPerfect.ToString("N0")}**/GR:**{score.countGreat.ToString("N0")}**/GO:**{score.countGood.ToString("N0")}**/BA:**{score.countOkay.ToString("N0")}**/MI:**{score.countMiss.ToString("N0")}**]");
 
             return embed;
         }
@@ -88,13 +85,13 @@ namespace RhythmGamer
         {
             var embed = Program.DefaultEmbed()
                 .WithTitle($"Scores")
-                .WithDescription($"{scores.Length} scores\n");
+                .WithDescription(description);
 
             int i = 1;
             foreach (var score in scores.Take(25))
             {
                 embed.Description += (
-                    $"\n**{i}.** [{score.map.title} \\[{score.map.difficultyName}\\]](https://quavergame.com/mapsets/map/{score.map.id})\n" +
+                    $"\n**{i}.** [{score.map.title} [{score.map.difficultyName}]](https://quavergame.com/mapsets/map/{score.map.id})\n" +
                     $"**Performance**: {score.performanceRating.ToString("N2")} | **Accuracy**: {score.accuracy.ToString("N2")}%\n" +
                     $"**Score**: {score.totalScore.ToString("N0")} | **Combo**: {score.maxCombo.ToString("N0")}\n" +
                     $"**Mods**: {score.modsString} | **Judge**: [{score.countMarvelous.ToString("N0")}/{score.countPerfect.ToString("N0")}/{score.countGreat.ToString("N0")}/{score.countGood.ToString("N0")}/{score.countOkay.ToString("N0")}/{score.countMiss.ToString("N0")}]");
