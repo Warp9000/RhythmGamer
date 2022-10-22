@@ -1,10 +1,12 @@
+using System.Net;
 using System.Linq;
 using System.Globalization;
 using Discord;
 using Discord.Interactions;
 using Newtonsoft.Json;
 using System.Text;
-
+using SharpCompress.Archives;
+using SharpCompress.Common;
 
 namespace RhythmGamer
 {
@@ -225,7 +227,10 @@ namespace RhythmGamer
                 var embed = GenerateEmbed(score);
 
                 if (Context.Interaction.ChannelId.HasValue)
+                {
                     QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, score.map.id);
+                    QuaverInternal.SetLastScoreId(Context.Interaction.ChannelId.Value, Context.Guild.Id, new Tuple<int, int>(score.map.id, score.id));
+                }
                 await RespondAsync(embed: embed.Build());
             }
             catch (Exception ex)
@@ -274,7 +279,10 @@ namespace RhythmGamer
                 embed.WithTitle($"{user.userInfo.username}'s top plays");
 
                 if (Context.Interaction.ChannelId.HasValue)
+                {
                     QuaverInternal.SetLastMapId(Context.Interaction.ChannelId.Value, Context.Guild.Id, scores.First().map.id);
+                    QuaverInternal.SetLastScoreId(Context.Interaction.ChannelId.Value, Context.Guild.Id, new Tuple<int, int>(scores.First().map.id, scores.First().id));
+                }
                 await RespondAsync(embed: embed.Build());
             }
             catch (Exception ex)
@@ -371,9 +379,114 @@ namespace RhythmGamer
                 await RespondAsync("An error occured");
             }
         }
+        [SlashCommand("render", "Renders the last score sent in chat", runMode: RunMode.Async)]
+        public async Task ReplayRender()
+        {
+            await RespondAsync("command doesnt work yet due to cloudflare being annoying");
+            return;
+            try
+            {
+                if (!File.Exists("allowedUsers.json"))
+                    File.WriteAllText("allowedUsers.json", "[]");
+                List<ulong> allowedUsers = JsonConvert.DeserializeObject<List<ulong>>(File.ReadAllText("allowedUsers.json"))!;
+                if (!allowedUsers.Contains(Context.User.Id))
+                {
+                    await RespondAsync("This command is currently limited to a few users for testing purposes");
+                    return;
+                }
+                var scoremapId = QuaverInternal.GetLastScoreId(Context.Interaction.ChannelId!.Value, Context.Guild.Id);
+                if (scoremapId.Item1 == -1)
+                {
+                    await RespondAsync("No score found in this channel");
+                    return;
+                }
+                var map = (await QuaverInternal.Api.GetMapAsync(scoremapId.Item1)).map;
+                if (map == null)
+                {
+                    await RespondAsync("Map not found");
+                    return;
+                }
+                Directory.CreateDirectory("./temp");
+                HttpClient client = new HttpClient();
+                var bytes = await client.GetByteArrayAsync($"https://quavergame.com/download/mapset/{map.mapsetId}");
+                File.WriteAllBytes("./temp/map.qp", bytes);
+                bytes = await client.GetByteArrayAsync($"https://quavergame.com/download/replay/{scoremapId.Item2}");
+                File.WriteAllBytes("./temp/replay.qr", bytes);
+
+
+                await RespondAsync("Starting render");
+
+                RendererController("./temp/map.qp", "./temp/replay.qr", map.id);
+            }
+            catch (Exception ex)
+            {
+                l.Critical(ex.Message, "ReplayRender", ex);
+                await RespondAsync("An error occured");
+            }
+        }
+        public void RendererController(string mapPath, string replayPath, int mapId)
+        {
+
+
+            var replay = new Quaver.API.Replays.Replay(replayPath);
+
+            QuaverInternal.ExtractQuaverMapset(mapPath, "./temp/mapset");
+            var qua = Quaver.API.Maps.Qua.Parse("./temp/mapset/" + mapId + ".qua");
+
+            var renderer = new QuaverRenderer.Renderer(replay, qua, new QuaverRenderer.MAniaSkin(), outputDirectory: "./temp/output");
+            renderer.StatusChanged += (o, e) =>
+            {
+                if (renderer.status == QuaverRenderer.Renderer.Status.Done)
+                {
+                    ModifyOriginalResponseAsync((prop) =>
+                    {
+                        prop.Content = "Done";
+                        prop.Attachments = new List<FileAttachment>() { new FileAttachment("./temp/output/output.mp4") };
+                    });
+                }
+                if (renderer.status == QuaverRenderer.Renderer.Status.MakingVideo)
+                    ModifyOriginalResponseAsync((prop) =>
+                    {
+                        prop.Content = "Merging frames into video...";
+                    });
+            };
+            var t = new System.Timers.Timer(5000);
+            t.Elapsed += (o, e) =>
+            {
+                if (renderer.status == QuaverRenderer.Renderer.Status.Done)
+                    t.Stop();
+                if (renderer.status == QuaverRenderer.Renderer.Status.MakingFrames)
+                    ModifyOriginalResponseAsync((prop) =>
+                    {
+                        prop.Content = $"Rendering frames: {renderer.RenderProgress.Item1}/{renderer.RenderProgress.Item2}" +
+                        $" ({renderer.RenderProgress.Item1 / (float)renderer.RenderProgress.Item2 * 100}%)";
+                    });
+                if (renderer.status == QuaverRenderer.Renderer.Status.MakingVideo)
+                    t.Stop();
+            };
+            t.Start();
+            renderer.Start();
+        }
+
+
     }
     public class QuaverInternal
     {
+        public static void ExtractQuaverMapset(string fileName, string extractPath)
+        {
+            var options = new ExtractionOptions { ExtractFullPath = true, Overwrite = true };
+
+            using (var archive = ArchiveFactory.Open(fileName))
+            {
+                foreach (var entry in archive.Entries)
+                {
+                    if (entry.IsDirectory)
+                        continue;
+
+                    entry.WriteToDirectory(extractPath, options);
+                }
+            }
+        }
         public class userConfig
         {
             public string? username;
@@ -394,9 +507,25 @@ namespace RhythmGamer
                 sc.quaver.lastMapChannel.Add(channelId, mapId);
             Program.SetServerConfig(guildId, sc);
         }
+        public static Tuple<int, int> GetLastScoreId(ulong channelId, ulong guildId)
+        {
+            if (Program.GetServerConfig(guildId).quaver.lastScoreChannel.TryGetValue(channelId, out var mapId))
+                return mapId;
+            return new Tuple<int, int>(-1, -1);
+        }
+        public static void SetLastScoreId(ulong channelId, ulong guildId, Tuple<int, int> scoremapId)
+        {
+            var sc = Program.GetServerConfig(guildId);
+            if (sc.quaver.lastScoreChannel.ContainsKey(channelId))
+                sc.quaver.lastScoreChannel[channelId] = scoremapId;
+            else
+                sc.quaver.lastScoreChannel.Add(channelId, scoremapId);
+            Program.SetServerConfig(guildId, sc);
+        }
         public class guildConfig
         {
             public Dictionary<ulong, int> lastMapChannel = new();
+            public Dictionary<ulong, Tuple<int, int>> lastScoreChannel = new();
         }
         public class Api
         {

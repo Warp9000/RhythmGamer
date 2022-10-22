@@ -50,8 +50,6 @@ namespace RhythmGamer
 #endif
             config = new Discord.WebSocket.DiscordSocketConfig
             {
-                AlwaysDownloadUsers = true,
-                MessageCacheSize = 250,
                 LogLevel = LogSeverity.Debug,
                 GatewayIntents = GatewayIntents.None
             };

@@ -338,7 +338,7 @@ namespace RhythmGamer
                 EmbedBuilder.WithTitle(response[0].beatmapset!.title).WithUrl(response[0].beatmap!.url).WithThumbnailUrl($"https://b.ppy.sh/thumb/{response[0].beatmapset!.id}l.jpg")
                 .WithDescription(
                     $"`{response[0].rank.ToUpper()}` | **{response[0].pp ?? -1} PP** | {Math.Round(response[0].accuracy * 100, 2)}%\n" +
-                    $"{response[0].score} | x{response[0].max_combo}/{map.max_combo}"
+                    $"{response[0].score.ToString("N0")} | x{response[0].max_combo}/{map.max_combo}"
                 ).WithAuthor(new EmbedAuthorBuilder()
                     .WithName(userR.username).WithIconUrl(userR.avatar_url).WithUrl("https://osu.ppy.sh/users/" + userR.id));
                 await RespondAsync(embed: EmbedBuilder.Build());

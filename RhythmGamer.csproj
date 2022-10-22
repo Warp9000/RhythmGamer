@@ -9,5 +9,12 @@
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.8"/>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1"/>
+    <PackageReference Include="SharpCompress" Version="0.32.2"/>
+    <PackageReference Include="Jint" Version="2.11.58"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="QuaverRenderer">
+      <HintPath>.\QuaverRenderer\QuaverRenderer.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
