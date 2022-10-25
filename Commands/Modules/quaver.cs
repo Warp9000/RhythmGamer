@@ -382,8 +382,6 @@ namespace RhythmGamer
         [SlashCommand("render", "Renders the last score sent in chat", runMode: RunMode.Async)]
         public async Task ReplayRender()
         {
-            await RespondAsync("command doesnt work yet due to cloudflare being annoying");
-            return;
             try
             {
                 if (!File.Exists("allowedUsers.json"))
@@ -408,15 +406,15 @@ namespace RhythmGamer
                 }
                 Directory.CreateDirectory("./temp");
                 HttpClient client = new HttpClient();
-                var bytes = await client.GetByteArrayAsync($"https://quavergame.com/download/mapset/{map.mapsetId}");
-                File.WriteAllBytes("./temp/map.qp", bytes);
-                bytes = await client.GetByteArrayAsync($"https://quavergame.com/download/replay/{scoremapId.Item2}");
+                var bytes = await client.GetByteArrayAsync($"https://api.quavergame.com/d/web/map/{map.mapsetId}");
+                File.WriteAllBytes("./temp/map.qua", bytes);
+                bytes = await client.GetByteArrayAsync($"https://api.quavergame.com/d/web/replay/{scoremapId.Item2}");
                 File.WriteAllBytes("./temp/replay.qr", bytes);
 
 
                 await RespondAsync("Starting render");
 
-                RendererController("./temp/map.qp", "./temp/replay.qr", map.id);
+                RendererController("./temp/map.qua", "./temp/replay.qr", map.id);
             }
             catch (Exception ex)
             {
@@ -426,46 +424,71 @@ namespace RhythmGamer
         }
         public void RendererController(string mapPath, string replayPath, int mapId)
         {
-
-
-            var replay = new Quaver.API.Replays.Replay(replayPath);
-
-            QuaverInternal.ExtractQuaverMapset(mapPath, "./temp/mapset");
-            var qua = Quaver.API.Maps.Qua.Parse("./temp/mapset/" + mapId + ".qua");
-
-            var renderer = new QuaverRenderer.Renderer(replay, qua, new QuaverRenderer.MAniaSkin(), outputDirectory: "./temp/output");
-            renderer.StatusChanged += (o, e) =>
+            Directory.CreateDirectory("./temp/output/temp");
+            string msg = "";
+            var t = new System.Timers.Timer(2500);
+            try
             {
-                if (renderer.status == QuaverRenderer.Renderer.Status.Done)
+                var replay = new Quaver.API.Replays.Replay(replayPath);
+
+                Quaver.API.Maps.Qua qua;
+
+                if (mapPath.EndsWith(".qp"))
                 {
-                    ModifyOriginalResponseAsync((prop) =>
-                    {
-                        prop.Content = "Done";
-                        prop.Attachments = new List<FileAttachment>() { new FileAttachment("./temp/output/output.mp4") };
-                    });
+                    QuaverInternal.ExtractQuaverMapset(mapPath, "./temp/mapset");
+                    qua = Quaver.API.Maps.Qua.Parse("./temp/mapset/" + mapId + ".qua");
                 }
-                if (renderer.status == QuaverRenderer.Renderer.Status.MakingVideo)
-                    ModifyOriginalResponseAsync((prop) =>
+                else
+                {
+                    qua = Quaver.API.Maps.Qua.Parse(mapPath);
+                }
+
+                var renderer = new QuaverRenderer.Renderer(replay, qua, new QuaverRenderer.MAniaSkin(), outputDirectory: "./temp/output");
+                renderer.StatusChanged += (o, e) =>
+                {
+                    if (renderer.status == QuaverRenderer.Renderer.Status.Done)
                     {
-                        prop.Content = "Merging frames into video...";
-                    });
-            };
-            var t = new System.Timers.Timer(5000);
-            t.Elapsed += (o, e) =>
+                        ModifyOriginalResponseAsync((prop) =>
+                        {
+                            msg += "✅ Done\n";
+                            prop.Content = msg;
+                            prop.Attachments = new List<FileAttachment>() { new FileAttachment("./temp/output/output.mp4") };
+                        });
+                    }
+                    if (renderer.status == QuaverRenderer.Renderer.Status.MakingVideo)
+                        ModifyOriginalResponseAsync((prop) =>
+                        {
+                            msg += "Merging frames into video...\n";
+                            prop.Content = msg;
+                        });
+                };
+                t.Elapsed += (o, e) =>
+                {
+                    if (renderer.status == QuaverRenderer.Renderer.Status.Done)
+                        t.Stop();
+                    if (renderer.status == QuaverRenderer.Renderer.Status.MakingFrames)
+                        ModifyOriginalResponseAsync((prop) =>
+                        {
+                            msg += $"Rendering frames: {renderer.RenderProgress.Item1}/{renderer.RenderProgress.Item2}" +
+                            $" ({(renderer.RenderProgress.Item1 / (float)renderer.RenderProgress.Item2 * 100).ToString("N1")}%)\n";
+                            prop.Content = msg;
+                        });
+                    if (renderer.status == QuaverRenderer.Renderer.Status.MakingVideo)
+                        t.Stop();
+                };
+                t.Start();
+                renderer.Start();
+            }
+            catch (Exception ex)
             {
-                if (renderer.status == QuaverRenderer.Renderer.Status.Done)
-                    t.Stop();
-                if (renderer.status == QuaverRenderer.Renderer.Status.MakingFrames)
-                    ModifyOriginalResponseAsync((prop) =>
-                    {
-                        prop.Content = $"Rendering frames: {renderer.RenderProgress.Item1}/{renderer.RenderProgress.Item2}" +
-                        $" ({renderer.RenderProgress.Item1 / (float)renderer.RenderProgress.Item2 * 100}%)";
-                    });
-                if (renderer.status == QuaverRenderer.Renderer.Status.MakingVideo)
-                    t.Stop();
-            };
-            t.Start();
-            renderer.Start();
+                l.Critical(ex.Message, "RendererController", ex);
+                ModifyOriginalResponseAsync((prop) =>
+                {
+                    msg += "❌ The renderer crashed\n";
+                    prop.Content = msg;
+                });
+                t.Stop();
+            }
         }
 
 
